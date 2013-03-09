@@ -22,9 +22,7 @@ unusedExtension = Extension("wraplibnc",
 
 
 extension = Extension("libncmodule", ["libncmodule.c"])
-
-#print dir(extension)
-#extension.undef_macros.append("NDEBUG")
+extension.undef_macros.append("NDEBUG")
 
 setup(name="libncmodule", version="0.1",
       ext_modules = [ extension ])

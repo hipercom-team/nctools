@@ -43,14 +43,6 @@ typedef struct {
 
 /*---------------------------------------------------------------------------*/
 
-#define MAX_LOG2_NB_BIT_COEF 3
-
-#define LOG2_BITS_PER_BYTE 3
-
-#define DIV_LOG2(value, log2_divisor) ((value)>>(log2_divisor))
-#define MUL_LOG2(value, log2_mult) ((value)<<(log2_mult))
-#define MASK(nb_bit) ((1 << (nb_bit))-1)
-#define MOD_LOG2(value, log2_divisor) ((value)&MASK((log2_divisor)))
 
 /*---------------------------------------------------------------------------*/
 

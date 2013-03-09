@@ -26,8 +26,8 @@ class Test(unittest.TestCase):
         * x.(y.z) = (x.y).z
         """
         n = 1<<(1<<l)
-        def mul(a,b): return libnc.lc_mul_scalar(a,b,l)
-        def inv(a): return libnc.lc_inv_scalar(a,l)
+        def mul(a,b): return libnc.lc_mul(a,b,l)
+        def inv(a): return libnc.lc_inv(a,l)
         def add(a,b): return a^b
 
         # x.1 == x and x.0 == 0
@@ -71,6 +71,110 @@ class Test(unittest.TestCase):
         for l in range(libnc.MaxLog2NbBitCoef):
             self.checkScalarGF(l)
 
+    def checkVectorGetSet(self, l):
+        """Check that setting and getting coefs impact and use the right bits"""
+        bitsPerCoef = (1<<l)
+        coefPerByte = (libnc.BitsPerByte / bitsPerCoef)
+
+        n = 256*8
+        assert n % coefPerByte  == 0
+        s = n//coefPerByte
+
+        vref = libnc.u8array(s)
+        v = libnc.u8array(s)
+
+        for coef,fillByte in [((1<<bitsPerCoef)-1,0), (0, 0xff)]:
+            libnc.u8array_set(vref.cast(), fillByte, s)
+
+            for i in range(256):
+                libnc.u8array_copy(v.cast(), vref.cast(), s)
+                libnc.lc_vector_set(v.cast(), s, l,  i, coef)
+                coef_back = libnc.lc_vector_get(v.cast(), s, l,  i)
+                self.assertEqual(coef_back, coef)
+
+                byteDiff = libnc.u8array_count_byte_diff(
+                    v.cast(), vref.cast(), s)
+                bitDiff = libnc.u8array_count_bit_diff(
+                    v.cast(), vref.cast(), s)
+
+                self.assertEqual(byteDiff, 1)
+                self.assertEqual(bitDiff, bitsPerCoef)
+
+
+    def test_checkVectorGetSet(self):
+        for l in range(libnc.MaxLog2NbBitCoef):
+            self.checkVectorGetSet(l)
+
+
+    def checkVectorMul(self, l):
+        """Check that the multiplication 'coef x vector' yields results that
+           are consistent with individual scalar multiplication"""
+        bitsPerCoef = (1<<l)
+        coefPerByte = (libnc.BitsPerByte / bitsPerCoef)
+
+        s = 256
+        n = s*coefPerByte
+
+        vref = libnc.u8array(s)
+        v = libnc.u8array(s)
+
+        for i in range(256):
+            vref[i] = i
+
+        for coef in range(1<<bitsPerCoef):
+            libnc.lc_vector_mul(coef, vref.cast(), s, l, v.cast())
+            for i in range(n):
+                before = libnc.lc_vector_get(vref.cast(), s, l, i)
+                after = libnc.lc_vector_get(v.cast(), s, l, i)
+                product = libnc.lc_mul(coef, before, l)
+                self.assertEqual(after, product)
+
+        for i in range(256):
+            self.assertEqual(vref[i], i)
+            
+
+    def test_checkVectorMul(self):
+        for l in range(libnc.MaxLog2NbBitCoef):
+            self.checkVectorMul(l)
+
+
+    def test_checkVectorAdd(self):
+        setList = ([set(), set(range(256)), set(range(0,256,2)), 
+                    set(range(1,256,2)), set(range(0,256,4))] 
+                   + [set([i]) for i in range(32)]
+                   + [set([7*i,9*j]) for i in range(8) for j in range(8)])
+
+        size = (max([max(s) for s in setList if len(s)>0])+7)/8
+        v1 = libnc.u8array(size)
+        v2 = libnc.u8array(size)
+        w = libnc.u8array(size)
+        sw_ptr = libnc.new_u16ptr()
+
+        def setVector(v, valueSet):
+            libnc.u8array_set(v.cast(), 0, size)
+            for i in valueSet:
+                libnc.lc_vector_set(v.cast(), size, 0,  i, 1)
+            if len(valueSet) == 0: return 0
+            return (max(valueSet)//8)+1
+
+        def getVector(v, s):
+            result = set()
+            for i in range(s*8):
+                if libnc.lc_vector_get(v.cast(), size, 0,  i):
+                    result.add(i)
+            return result
+
+        for set1 in setList:
+            for set2 in setList:
+                s1 = setVector(v1, set1)
+                s2 = setVector(v2, set2)
+                libnc.lc_vector_add(v1.cast(),s1, v2.cast(),s2, 
+                                    w.cast(), sw_ptr)
+                sw = libnc.u16ptr_value(sw_ptr)
+                self.assertEqual(sw, max(s1,s2))
+                result = getVector(w, sw)
+                expectedResult = set1.symmetric_difference(set2)
+                self.assertEqual(result, expectedResult)
 
 #---------------------------------------------------------------------------
 
