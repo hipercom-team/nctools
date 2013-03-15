@@ -49,6 +49,10 @@ static inline uint8_t gf256_inv(uint8_t a)
 
 /*---------------------------------------------------------------------------*/
 
+/* 
+   the function also operates correctly when two of the pointers (or all three)
+   result, data1 or data2 are exactly the same.
+*/
 void lc_vector_add(uint8_t* data1, uint16_t size1,
 		   uint8_t* data2, uint16_t size2,
 		   uint8_t* result, uint16_t* result_size)
@@ -74,6 +78,7 @@ void lc_vector_add(uint8_t* data1, uint16_t size1,
 
 /*---------------------------------------------------------------------------*/
 
+/* this function also operates correctly if data is exactly equal to result */
 void lc_vector_mul_gf256(uint8_t coef, uint8_t* data, uint16_t size,
 			 uint8_t* result)
 { 
@@ -87,6 +92,7 @@ void lc_vector_mul_gf256(uint8_t coef, uint8_t* data, uint16_t size,
     result[i] = gf256_mul(coef, data[i]);
 }
 
+/* this function also operates correctly if data is exactly equal to result */
 void lc_vector_mul_gf16(uint8_t coef, uint8_t* data, uint16_t size,
 			uint8_t* result)
 {
@@ -96,6 +102,7 @@ void lc_vector_mul_gf16(uint8_t coef, uint8_t* data, uint16_t size,
     result[i] = gf16_mul_table[coef][data[i]];
 }
 
+/* this function also operates correctly if data is exactly equal to result */
 void lc_vector_mul_gf4(uint8_t coef, uint8_t* data, uint16_t size,
 		       uint8_t* result)
 {
@@ -105,6 +112,7 @@ void lc_vector_mul_gf4(uint8_t coef, uint8_t* data, uint16_t size,
     result[i] = gf4_mul_table[coef][data[i]];
 }
 
+/* this function also operates correctly if data is exactly equal to result */
 void lc_vector_mul_gf2(uint8_t coef, uint8_t* data, uint16_t size,
 		       uint8_t* result)
 {
@@ -117,7 +125,7 @@ void lc_vector_mul_gf2(uint8_t coef, uint8_t* data, uint16_t size,
   }
 }
 
-
+/* this function also operates correctly if data is exactly equal to result */
 void lc_vector_mul(uint8_t coef, uint8_t* data, uint16_t size,
 		   uint8_t log2_nb_bit_coef, uint8_t* result)
 {
@@ -188,11 +196,10 @@ uint8_t lc_mul(uint8_t x, uint8_t y, uint8_t log2_nb_bit_coef)
   }
 }
 
-/*---------------------------------------------------------------------------*/
-
 uint8_t lc_inv(uint8_t x, uint8_t log2_nb_bit_coef)
 {
   ASSERT( log2_nb_bit_coef <= MAX_LOG2_NB_BIT_COEF );
+  REQUIRE( x != 0 );
   switch(log2_nb_bit_coef) {
   case 0: ASSERT(x < 2); return x;
   case 1: ASSERT(x < 4); return gf4_inv_table[x];

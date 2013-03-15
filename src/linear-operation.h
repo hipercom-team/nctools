@@ -15,11 +15,14 @@
 
 /*---------------------------------------------------------------------------*/
 
-#define MAX_LOG2_NB_BIT_COEF 3
+#define MAX_LOG2_NB_BIT_COEF 3 /* included */
 
 uint8_t lc_inv(uint8_t x, uint8_t log2_nb_bit_coef);
 
 uint8_t lc_mul(uint8_t x, uint8_t y, uint8_t log2_nb_bit_coef);
+
+static inline uint8_t lc_neg(uint8_t x, uint8_t log2_nb_bit_coef) 
+{ return x; /* -x == x in GF(2^n) */ } 
 
 /*---------------------------------------------------------------------------*/
 

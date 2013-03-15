@@ -10,133 +10,199 @@
 
 /*---------------------------------------------------------------------------*/
 
-static inline unsigned int get_packet_window(uint8_t log2_nb_bit_coef)
-{ return DIV_LOG2(CODING_HEADER_SIZE, log2_nb_bit_coef); }
 
-static inline unsigned int gen_of_base_packet(unsigned int base_packet, 
-					      uint8_t log2_nb_bit_coef)
-{ return DIV_LOG2(base_packet, (LOG2_CODING_HEADER_SIZE+log2_nb_bit_coef)); }
+void coded_packet_copy_from(coded_packet_t* dst, coded_packet_t* src)
+{ memcpy(dst, src, sizeof(*src)); }
 
-static inline unsigned int coef_index_of_base_packet(unsigned int base_packet, 
-						   uint8_t log2_nb_bit_coef)
-{ return MOD_LOG2(base_packet, (LOG2_CODING_HEADER_SIZE+log2_nb_bit_coef)); }
+void coded_packet_set_coef(coded_packet_t* pkt, uint16_t coef_index,
+			   uint8_t coef_value)
+{
+  ASSERT( pkt->log2_nb_bit_coef <= MAX_LOG2_NB_BIT_COEF );
+  uint8_t l = pkt->log2_nb_bit_coef;
+  uint16_t log2_window = coded_packet_log2_window(pkt);
 
-/* 
-   base_packet_index bits are subdivided as:
-   <generation><index of byte>                 <index of coef inside byte>
-               [LOG2_CODING_HEADER_SIZE/8 bits][(8/log2_nb_bit_coef) bits]
-*/
+  if (coef_value > 0) {
+    if (pkt->coef_index_min == COEF_INDEX_NONE 
+	|| coef_index < pkt->coef_index_min)
+      pkt->coef_index_min = coef_index;
+    if (pkt->coef_index_max == COEF_INDEX_NONE 
+	|| coef_index > pkt->coef_index_max)
+      pkt->coef_index_max = coef_index;
 
-uint8_t coded_packet_get_coef(coded_packet_t* pkt, 
-			      unsigned int base_packet_index)
-{   
-  //unsigned int coef_per_byte = DIV_LOG2(BITS_PER_BYTE, pkg->log2_nb_bit_coef);
-  unsigned int log2_coef_per_byte = LOG2_BITS_PER_BYTE - pkg->log2_nb_bit_coef;
-  unsigned int coef_index_inside_byte 
-    = MOD_LOG2(base_packet_index, log2_coef_per_byte);
-  unsigned int raw_byte_pos = DIV_LOG2(base_packet_index, log2_coef_per_byte);
-  unsigned int byte_pos = MOD_LOG2(raw_byte_pos, LOG2_CODING_HEADER_SIZE);
-  unsigned int generation = DIV_LOG2(raw_byte_pos, LOG2_CODING_HEADER_SIZE);
+    ASSERT( pkt->coef_index_max - pkt->coef_index_min < (1<<log2_window) );
+  }
+  uint16_t actual_coef_index = MOD_LOG2(coef_index,  log2_window);
 
-
-  unsigned int bit_pos = MUL_LOG2(coef_index_inside_byte, 
-				  pkt->log2_nb_bit_coef);
-
-  unsigned int coef = MOD_LOG2( (pkt->content.u8[byte_pos] >> bit_pos),
-				(1<<pkt->log2_nb_bit_coef) );
+  lc_vector_set(pkt->content.u8, COEF_HEADER_SIZE, l, 
+		actual_coef_index, coef_value);
 }
 
-void coded_packet_set_coef(coded_packet_t* pkt, uint16_t base_packet_index,
-			   uint8_t coef)
+uint8_t coded_packet_get_coef(coded_packet_t* pkt, uint16_t coef_index)
 {
-  unsigned int nb_bit_coef = 1<<pkt->log2_nb_bit_coef;
-  unsigned int log2_coef_per_byte = LOG2_BITS_PER_BYTE - pkg->log2_nb_bit_coef;
-  unsigned int coef_index_inside_byte 
-    = MOD_LOG2(base_packet_index, log2_coef_per_byte);
-  unsigned int raw_byte_pos = DIV_LOG2(base_packet_index, log2_coef_per_byte);
-  unsigned int byte_pos = MOD_LOG2(raw_byte_pos, LOG2_CODING_HEADER_SIZE);
-  unsigned int generation = DIV_LOG2(raw_byte_pos, LOG2_CODING_HEADER_SIZE);
+  ASSERT( pkt->log2_nb_bit_coef <= MAX_LOG2_NB_BIT_COEF );
 
-  unsigned int coef_mask = MASK(nb_bit_coef);
+  if (coef_index < pkt->coef_index_min || coef_index > pkt->coef_index_max)
+    return 0;
 
-  unsigned int bit_pos = MUL_LOG2(coef_index_inside_byte, 
-				  pkt->log2_nb_bit_coef);
+  uint8_t l = pkt->log2_nb_bit_coef;
+  uint16_t log2_window = coded_packet_log2_window(pkt);
+  uint16_t actual_coef_index = MOD_LOG2(coef_index,  log2_window);
 
-  ASSERT( coef <= coef_mask );
+  return lc_vector_get(pkt->content.u8, COEF_HEADER_SIZE, l, 
+		       actual_coef_index);
+}
 
-  pkt->content.u8[byte_pos] = 
-    (pkt->content.u8[byte_pos]&(coef_mask << bit_pos))
-    | (coef<<bit_pos);
+static bool coded_packet_adjust_min_coef(coded_packet_t* pkt)
+{
+  REQUIRE( pkt->coef_index_min != COEF_INDEX_NONE
+	   && pkt->coef_index_max != COEF_INDEX_NONE );
 
-  if (coef == 0)
-    return;
+  uint8_t l = pkt->log2_nb_bit_coef;
+  uint16_t log2_window = coded_packet_log2_window(pkt);
+  bool result = true;
+  for (;;) {
+    uint16_t i = MOD_LOG2(pkt->coef_index_min, log2_window);
+    if (lc_vector_get(pkt->content.u8, COEF_HEADER_SIZE, l, i) != 0)
+      break;
 
-  if (pkt->generation == GENERATION_NONE) {
-    pkt->generation = generation;
-    pkt->raw_coef_byte_start = raw_byte_pos;
-    pkt->raw_coef_byte_end = raw_byte_pos;
-  } else {
-    if (raw_byte_pos < pkt->raw_coef_byte_start)
-      pkt->raw_coef_byte_start = raw_byte_pos;
-    if (raw_byte_pos > pkt->raw_coef_byte_end)
-      pkt->raw_coef_byte_end = raw_byte_pos;
-    ASSERT( pkt->raw_coef_byte_end - pkt->raw_coef_byte_start 
-	    < CODING_HEADER_SIZE );
+    pkt->coef_index_min ++;
+    if (pkt->coef_index_min > pkt->coef_index_max) {
+      pkt->coef_index_min = COEF_INDEX_NONE;
+      pkt->coef_index_max = COEF_INDEX_NONE;
+      result = false;
+      break;
+    }
   }
+  return result;
+}
+
+static bool coded_packet_adjust_max_coef(coded_packet_t* pkt)
+{
+  REQUIRE( pkt->coef_index_min != COEF_INDEX_NONE
+	   && pkt->coef_index_max != COEF_INDEX_NONE );
+
+  uint8_t l = pkt->log2_nb_bit_coef;
+  uint16_t log2_window = coded_packet_log2_window(pkt);
+  bool result = true;
+  for(;;) {
+    uint16_t i = MOD_LOG2(pkt->coef_index_max, log2_window);
+    if (lc_vector_get(pkt->content.u8, COEF_HEADER_SIZE, l, i) != 0)
+      break;
+
+    if (pkt->coef_index_max == 0
+	|| (pkt->coef_index_min == pkt->coef_index_max)) {
+      pkt->coef_index_min = COEF_INDEX_NONE;
+      pkt->coef_index_max = COEF_INDEX_NONE;
+      result = false;
+      break;
+    }
+
+    pkt->coef_index_max --;
+  }
+  return result;
+}
+
+bool coded_packet_adjust_min_max_coef(coded_packet_t* pkt)
+{
+  bool result = true;
+  if (pkt->coef_index_min == COEF_INDEX_NONE) {
+    ASSERT( pkt->coef_index_max == COEF_INDEX_NONE );
+    result = false;
+  }
+  
+  if (result)
+    result = coded_packet_adjust_min_coef(pkt);
+  if (result)
+    result = coded_packet_adjust_max_coef(pkt);
+  return result;
 }
 
 void coded_packet_init(coded_packet_t* pkt, uint8_t log2_nb_bit_coef)
 {
   ASSERT( log2_nb_bit_coef <= MAX_LOG2_NB_BIT_COEF );
   pkt->log2_nb_bit_coef = log2_nb_bit_coef;
-  pkt->generation = GENERATION_NONE;
-  pkt->raw_coef_byte_start = COEF_BYTE_NONE;
-  pkt->raw_coef_byte_end = COEF_BYTE_NONE;
+  pkt->coef_index_min = COEF_INDEX_NONE;
+  pkt->coef_index_max = COEF_INDEX_NONE;
   pkt->data_size = 0;
-  memset(pkt->content.u8, 0, CODING_HEADER_SIZE);
+  memset(pkt->content.u8, 0, COEF_HEADER_SIZE);
 }
-
 
 void coded_packet_init_from_base_packet
 (coded_packet_t* pkt, uint8_t log2_nb_bit_coef, uint16_t base_index,
  uint8_t* data, uint8_t data_size)
 {
-  coded_packet_init(pkt, log2_nb_bit_coef);
+  coded_packet_init(pkt, log2_nb_bit_coef);  
   coded_packet_set_coef(pkt, base_index, 1);
   ASSERT( pkt->data_size < data_size );
-  memcpy(pkt->content.u8 + CODING_HEADER_SIZE, data, data_size);
+  memcpy(pkt->content.u8 + COEF_HEADER_SIZE, data, data_size);
   pkt->data_size = data_size;
 }
 
-
-
-#if 0
-void coded_packet_mul(coded_packet_t* pkt, uint16_t coef)
+/* 
+   the function also operates correctly when two of the pointers (or all three)
+   result, p1, or p2 are exactly the same.
+*/
+void coded_packet_to_add(coded_packet_t* result,
+			 coded_packet_t* p1,
+			 coded_packet_t* p2)
 {
-  ASSERT( is_valid_coef_size(pkt->coef_size) );
-  ASSERT( coef < (1<<pkt->nb_bit_coef) );
+  result->coef_index_min = min_except(p1->coef_index_min, p2->coef_index_min,
+				      COEF_INDEX_NONE);
+  result->coef_index_max = max_except(p1->coef_index_max, p2->coef_index_max,
+				      COEF_INDEX_NONE);
 
-  if (coef == 0) {
-    memset(pkt->content.u8, 0, sizeof(pkt->content.u8));
+  if (result->coef_index_min == COEF_INDEX_NONE) {
+    ASSERT( result->coef_index_max );
     return;
   }
-  int i;
-  for (i=0; i<CODING_HEADER_SIZE; i++)
-    
+
+  ASSERT( result->coef_index_max - result->coef_index_min 
+	  < (1<<coded_packet_log2_window(result)) );
+
+  lc_vector_add(p1->content.u8, COEF_HEADER_SIZE + p1->data_size, 
+		p2->content.u8, COEF_HEADER_SIZE + p2->data_size,
+		result->content.u8, &result->data_size);
 }
+
+/* p1 pointer MUST be different from p2 pointer */
+static void coded_packet_destructive_linear_combination
+(uint8_t coef1, coded_packet_t* p1_and_result, 
+ uint8_t coef2, coded_packet_t* p2)
+{
+  REQUIRE( p1_and_result != p2 );
+  //if (coef1 != 1) // [XXX] uncomment for opt.
+  coded_packet_to_mul(p1_and_result, coef1);
+  //if (coef2 != 1) // [XXX] uncomment for opt.
+  coded_packet_to_mul(p2, coef2);
+  coded_packet_to_add(p1_and_result, p1_and_result, p2);
+}
+
+/* p1 += coef2 x p2 ; p1 pointer may be equal to p2 pointer */
+void coded_packet_add_mult
+(coded_packet_t* p1, uint8_t coef2, coded_packet_t* p2)
+{
+  coded_packet_t p2_copy;
+  coded_packet_copy_from(&p2_copy, p2);
+  coded_packet_destructive_linear_combination(1, p1, coef2, &p2_copy);
+}
+
+
+bool coded_packet_is_empty_safe(coded_packet_t* pkt)
+{
+  if (pkt->coef_index_min == COEF_INDEX_NONE)
+    return true;
+  ASSERT(pkt->coef_index_max != COEF_INDEX_NONE);
+  uint16_t i;
+  for (i=pkt->coef_index_min; i<=pkt->coef_index_max; i++)
+    if (coded_packet_get_coef(pkt, i) != 0)
+      return false;
+  return true;
+}
+
+
+#ifdef WITH_FPRINTF
+void coded_packet_repr(coded_packet_t* p, FILE* out)
+{ }
 #endif
 
-
-#if 0
-bool_t coded_packet_is_decoded(coded_packet_t* packet)
-{
-}
-
-void packet_set_add(packet_set_t* packet_set, coded_packet_t* packet)
-{
-  int i;
-  
-  min_packet_index;
-  max_packet_index;
-}
-#endif
+/*---------------------------------------------------------------------------*/

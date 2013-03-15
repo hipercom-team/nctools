@@ -20,20 +20,32 @@
 %array_class(uint16_t, u16array)
 %pointer_functions(uint8_t,  u8ptr)
 %pointer_functions(uint16_t, u16ptr)
+%array_functions(uint8_t, u8block)
 
 //---------------------------------------------------------------------------
 
 %{
 #include "linear-operation.h"
 #include "linear-operation.c"
+
+#include "linear-packet.h"
+#include "linear-packet.c"
 %}
 
 %include "linear-operation.h"
+%include "linear-packet.h"
+
+%pointer_functions(coded_packet_t, codedPacket)
 
 //---------------------------------------------------------------------------
 
 %inline %{
   
+  const unsigned int macro_LOG2_COEF_HEADER_SIZE = LOG2_COEF_HEADER_SIZE;
+  const unsigned int macro_COEF_HEADER_SIZE = COEF_HEADER_SIZE;
+  const unsigned int macro_CODED_PACKET_SIZE = CODED_PACKET_SIZE;
+  const unsigned int macro_COEF_INDEX_NONE = COEF_INDEX_NONE;
+
   void u8array_set(uint8_t* data, uint8_t value, int size)
   { memset(data, value, size); }
 

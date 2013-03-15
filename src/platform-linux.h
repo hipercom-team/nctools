@@ -12,10 +12,11 @@
 /*---------------------------------------------------------------------------*/
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /* see also: http://en.wikipedia.org/wiki/C_data_types (c99 data types) */
 /** boolean type */
-typedef unsigned char bool_t;
+//typedef unsigned char bool_t;
 
 /*---------------------------------------------------------------------------*/
 

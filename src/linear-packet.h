@@ -15,51 +15,77 @@
 #include <string.h>
 
 #include "general.h"
+#include "linear-operation.h"
 
 /*---------------------------------------------------------------------------*/
 
 #define CODED_PACKET_SIZE 128
 
-#define LOG2_CODING_HEADER_SIZE 4
-#define CODING_HEADER_SIZE (1<<LOG2_CODING_HEADER_SIZE)
+#define LOG2_COEF_HEADER_SIZE 4
+#ifndef SWIG
+#define COEF_HEADER_SIZE (1<<LOG2_COEF_HEADER_SIZE)
+#else /* SWIG */
+#define COEF_HEADER_SIZE 16
+#endif /* SWIG */
 
-#define GENERATION_NONE 0xffffu
-#define COEF_BYTE_NONE 0xffffu
+#define COEF_INDEX_NONE 0xffffu
 
 typedef struct {
   uint8_t  log2_nb_bit_coef; /* 0,1,2,3 [-> 1,2,4,8 bits for coefficients] */
-  uint16_t generation;  /* for sanity check */
 
-  uint16_t raw_coef_byte_start; 
-  uint16_t raw_coef_byte_end;
+  uint16_t coef_index_min; 
+  uint16_t coef_index_max;
   uint16_t data_size;
 
   union {
-    uint32_t u32[(CODING_HEADER_SIZE+CODED_PACKET_SIZE+3)/4];
-    //uint16_t u16[(CODING_HEADER_SIZE+CODED_PACKET_SIZE+1)/2];
-    uint8_t  u8[CODING_HEADER_SIZE+CODED_PACKET_SIZE];
+    uint32_t u32[(COEF_HEADER_SIZE+CODED_PACKET_SIZE+3)/4];
+    //uint16_t u16[(COEF_HEADER_SIZE+CODED_PACKET_SIZE+1)/2];
+    uint8_t  u8[COEF_HEADER_SIZE+CODED_PACKET_SIZE];
   } content;
 } coded_packet_t;
 
 /*---------------------------------------------------------------------------*/
 
+static inline uint16_t coded_packet_log2_window(coded_packet_t* pkt)
+{
+  uint8_t l = pkt->log2_nb_bit_coef;
+  return LOG2_COEF_HEADER_SIZE+LOG2_BITS_PER_BYTE-l;
+}
 
-/*---------------------------------------------------------------------------*/
+void coded_packet_init(coded_packet_t* pkt, uint8_t log2_nb_bit_coef);
 
-#define MAX_CODED_PACKET (CODING_HEADER_SIZE * BITS_PER_BYTE)
+void coded_packet_init_from_base_packet
+(coded_packet_t* pkt, uint8_t log2_nb_bit_coef, uint16_t base_index,
+ uint8_t* data, uint8_t data_size);
 
-struct s_packet_set_t;
-typedef void(*packet_set_notify_decoded)(struct s_packet_set_t* packet_set,
-					 uint16_t packet_index,
-					 uint16_t packet_base);
+void coded_packet_copy_from(coded_packet_t* dst, coded_packet_t* src);
 
-#define PACKET_INDEX_NONE 0xffffu
+void coded_packet_set_coef(coded_packet_t* pkt, uint16_t coef_index,
+			   uint8_t coef_value);
 
-typedef struct s_packet_set_t {
-  coded_packet_t packet_table[MAX_CODED_PACKET];
-  uint16_t index_of_base[MAX_CODED_PACKET];
-  uint16_t base_of_index[MAX_CODED_PACKET];
-} packet_set_t;
+uint8_t coded_packet_get_coef(coded_packet_t* pkt, uint16_t coef_index);
+
+bool coded_packet_adjust_min_max_coef(coded_packet_t* pkt);
+
+static inline bool coded_packet_is_empty(coded_packet_t* pkt)
+{ return !coded_packet_adjust_min_max_coef(pkt); }
+
+static inline void coded_packet_to_mul(coded_packet_t* pkt, uint8_t coef)
+{ lc_vector_mul(coef, pkt->content.u8, COEF_HEADER_SIZE+pkt->data_size,
+		pkt->log2_nb_bit_coef, pkt->content.u8); }
+
+void coded_packet_to_add(coded_packet_t* result,
+			 coded_packet_t* p1,
+			 coded_packet_t* p2);
+
+//void coded_packet_destructive_linear_combination
+//(uint8_t coef1, coded_packet_t* p1_and_result, 
+// uint8_t coef2, coded_packet_t* p2);
+
+void coded_packet_add_mult
+(coded_packet_t* p1, uint8_t coef2, coded_packet_t* p2);
+
+bool coded_packet_is_empty_safe(coded_packet_t* pkt);
 
 /*---------------------------------------------------------------------------*/
 

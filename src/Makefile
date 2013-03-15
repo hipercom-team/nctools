@@ -9,7 +9,7 @@ CFLAGS += -Wall
 
 #------------------------------
 
-SRCS = linear-operation.c general.c
+SRCS = linear-operation.c linear-packet.c general.c
 
 HEADERS = $(SRCS:.c=.h)
 

@@ -68,7 +68,7 @@ class Test(unittest.TestCase):
 
 
     def test_checkScalarGF(self):
-        for l in range(libnc.MaxLog2NbBitCoef):
+        for l in range(libnc.MaxLog2NbBitCoef+1):
             self.checkScalarGF(l)
 
     def checkVectorGetSet(self, l):
@@ -102,7 +102,7 @@ class Test(unittest.TestCase):
 
 
     def test_checkVectorGetSet(self):
-        for l in range(libnc.MaxLog2NbBitCoef):
+        for l in range(libnc.MaxLog2NbBitCoef+1):
             self.checkVectorGetSet(l)
 
 
@@ -134,7 +134,7 @@ class Test(unittest.TestCase):
             
 
     def test_checkVectorMul(self):
-        for l in range(libnc.MaxLog2NbBitCoef):
+        for l in range(libnc.MaxLog2NbBitCoef+1):
             self.checkVectorMul(l)
 
 
