@@ -23,8 +23,8 @@
 //---------------------------------------------------------------------------
 
 %{
-#include "linear-coding.h"
-#include "linear-coding.c"
+#include "linear-code.h"
+#include "linear-code.c"
 
 #include "coded-packet.h"
 #include "coded-packet.c"
@@ -32,7 +32,7 @@
 #include "general.c"
 %}
 
-%include "linear-coding.h"
+%include "linear-code.h"
 %include "coded-packet.h"
 
 %pointer_functions(coded_packet_t, codedPacket)
@@ -44,7 +44,7 @@
   const unsigned int macro_LOG2_COEF_HEADER_SIZE = LOG2_COEF_HEADER_SIZE;
   const unsigned int macro_COEF_HEADER_SIZE = COEF_HEADER_SIZE;
   const unsigned int macro_CODED_PACKET_SIZE = CODED_PACKET_SIZE;
-  const unsigned int macro_COEF_INDEX_NONE = COEF_INDEX_NONE;
+  const unsigned int macro_COEF_POS_NONE = COEF_POS_NONE;
 
   void u8array_set(uint8_t* data, uint8_t value, int size)
   { memset(data, value, size); }

@@ -9,7 +9,7 @@
 #include <string.h>
 
 #include "general.h"
-#include "linear-coding.h"
+#include "linear-code.h"
 
 /*--------------------------------------------------*/
 
@@ -145,18 +145,18 @@ typedef uint_fast16_t uf16;
 typedef uint_fast8_t uf8;
 
 void lc_vector_set(uint8_t* data, uint16_t size, uint8_t log2_nb_bit_coef,
-		   uint16_t coef_index, uint8_t coef_value)
+		   uint16_t coef_pos, uint8_t coef_value)
 {
   ASSERT( log2_nb_bit_coef <= MAX_LOG2_NB_BIT_COEF );
   uf8 nb_bit_coef = 1<<log2_nb_bit_coef;
   ASSERT( coef_value < (1<<nb_bit_coef) );
-  ASSERT( coef_index < (size*BITS_PER_BYTE)/nb_bit_coef );
+  ASSERT( coef_pos < (size*BITS_PER_BYTE)/nb_bit_coef );
 
   uf8 log2_coef_per_byte = LOG2_BITS_PER_BYTE - log2_nb_bit_coef;
-  uf8 coef_index_inside_byte = MOD_LOG2(coef_index, log2_coef_per_byte);
-  uf16 byte_pos = DIV_LOG2(coef_index, log2_coef_per_byte);
+  uf8 coef_pos_inside_byte = MOD_LOG2(coef_pos, log2_coef_per_byte);
+  uf16 byte_pos = DIV_LOG2(coef_pos, log2_coef_per_byte);
   uf8 coef_mask = MASK(nb_bit_coef);
-  uf8 bit_pos = MUL_LOG2(coef_index_inside_byte, log2_nb_bit_coef);
+  uf8 bit_pos = MUL_LOG2(coef_pos_inside_byte, log2_nb_bit_coef);
   ASSERT( coef_value <= coef_mask );
 
   data[byte_pos] = (data[byte_pos] & ~(coef_mask << bit_pos))
@@ -164,17 +164,17 @@ void lc_vector_set(uint8_t* data, uint16_t size, uint8_t log2_nb_bit_coef,
 }
 
 uint8_t lc_vector_get(uint8_t* data, uint16_t size, uint8_t log2_nb_bit_coef,
-		      uint16_t coef_index)
+		      uint16_t coef_pos)
 {
   ASSERT( log2_nb_bit_coef <= MAX_LOG2_NB_BIT_COEF );
   uf8 nb_bit_coef = 1<<log2_nb_bit_coef;
-  ASSERT( coef_index < (size*BITS_PER_BYTE)/nb_bit_coef );
+  ASSERT( coef_pos < (size*BITS_PER_BYTE)/nb_bit_coef );
 
   uf8 log2_coef_per_byte = LOG2_BITS_PER_BYTE - log2_nb_bit_coef;
-  uf8 coef_index_inside_byte = MOD_LOG2(coef_index, log2_coef_per_byte);
-  uf16 byte_pos = DIV_LOG2(coef_index, log2_coef_per_byte);
+  uf8 coef_pos_inside_byte = MOD_LOG2(coef_pos, log2_coef_per_byte);
+  uf16 byte_pos = DIV_LOG2(coef_pos, log2_coef_per_byte);
   uf8 coef_mask = MASK(nb_bit_coef);
-  uf8 bit_pos = MUL_LOG2(coef_index_inside_byte, log2_nb_bit_coef);
+  uf8 bit_pos = MUL_LOG2(coef_pos_inside_byte, log2_nb_bit_coef);
   
   uf8 result = (data[byte_pos] >> bit_pos) & coef_mask;
   return result;

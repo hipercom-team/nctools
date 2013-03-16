@@ -35,7 +35,8 @@ typedef struct s_packet_set_t {
   uint8_t log2_nb_bit_coef;
 } packet_set_t;
 
-void packet_set_init(packet_set_t* set, notify_decoded_func notify_func);
+void packet_set_init(packet_set_t* set, uint8_t log2_nb_bit_coef,
+		     notify_decoded_func_t notify_func);
 
 uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt);
 

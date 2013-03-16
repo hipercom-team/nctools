@@ -15,7 +15,7 @@
 #include <string.h>
 
 #include "general.h"
-#include "linear-coding.h"
+#include "linear-code.h"
 
 /*---------------------------------------------------------------------------*/
 
@@ -28,13 +28,13 @@
 #define COEF_HEADER_SIZE 16
 #endif /* SWIG */
 
-#define COEF_INDEX_NONE 0xffffu
+#define COEF_POS_NONE 0xffffu
 
 typedef struct {
   uint8_t  log2_nb_bit_coef; /* 0,1,2,3 [-> 1,2,4,8 bits for coefficients] */
 
-  uint16_t coef_index_min; 
-  uint16_t coef_index_max;
+  uint16_t coef_pos_min; 
+  uint16_t coef_pos_max;
   uint16_t data_size;
 
   union {
@@ -60,10 +60,14 @@ void coded_packet_init_from_base_packet
 
 void coded_packet_copy_from(coded_packet_t* dst, coded_packet_t* src);
 
-void coded_packet_set_coef(coded_packet_t* pkt, uint16_t coef_index,
+void coded_packet_set_coef(coded_packet_t* pkt, uint16_t coef_pos,
 			   uint8_t coef_value);
 
-uint8_t coded_packet_get_coef(coded_packet_t* pkt, uint16_t coef_index);
+uint8_t coded_packet_get_coef(coded_packet_t* pkt, uint16_t coef_pos);
+
+static inline uint16_t coded_packet_get_actual_coef_pos
+(coded_packet_t* pkt, uint16_t coef_pos)
+{ return MOD_LOG2(coef_pos, coded_packet_log2_window(pkt)); }
 
 bool coded_packet_adjust_min_max_coef(coded_packet_t* pkt);
 
@@ -77,6 +81,13 @@ static inline void coded_packet_to_mul(coded_packet_t* pkt, uint8_t coef)
 void coded_packet_to_add(coded_packet_t* result,
 			 coded_packet_t* p1,
 			 coded_packet_t* p2);
+
+#if 0
+/* XXX: not used */
+void coded_packet_get_sum_index_bound
+(coded_packet_t* p1, coded_packet_t* p2,
+ uint16_t* result_coef_pos_min, uint16_t* result_coef_pos_max)
+#endif
 
 void coded_packet_add_mult
 (coded_packet_t* p1, uint8_t coef2, coded_packet_t* p2);

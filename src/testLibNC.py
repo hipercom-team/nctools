@@ -177,8 +177,8 @@ class TestLinearCoding(unittest.TestCase):
                 self.assertEqual(result, expectedResult)
 
 
-class TestLinearCoding(unittest.TestCase):
-    pass # XXX
+#class TestLinearCoding(unittest.TestCase):
+#    pass # XXX
 
 class TestCodedPacket(unittest.TestCase):
     def setUp(self):
@@ -218,13 +218,13 @@ class TestCodedPacket(unittest.TestCase):
         window = 4
         codedPacketList = libnc.generateLinearCombList(
             baseList, 2*len(baseList), window, 1)
-        decodedList, indexToBase, baseToIndex = libnc.decode(codedPacketList)
-        for baseIndex, packetIndex in baseToIndex.iteritems():
-            p = decodedList[packetIndex]
-            if p.content.coef_index_min == p.content.coef_index_max:
-                print baseIndex, p, repr(p.getData())
+        decodedList, posToBase, baseToPos = libnc.decode(codedPacketList)
+        for basePos, packetPos in baseToPos.iteritems():
+            p = decodedList[packetPos]
+            if p.content.coef_pos_min == p.content.coef_pos_max:
+                print basePos, p, repr(p.getData())
                 same = libnc.coded_packet_is_similar(
-                    p.content, baseList[baseIndex].content)
+                    p.content, baseList[basePos].content)
                 self.assertTrue(same)
         
 

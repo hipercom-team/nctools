@@ -6,8 +6,8 @@
  * All rights reserved. Distributed only with permission.
  *---------------------------------------------------------------------------*/
 
-#ifndef __LINEAR_CODING_H__
-#define __LINEAR_CODING_H__
+#ifndef __LINEAR_CODE_H__
+#define __LINEAR_CODE_H__
 
 /*---------------------------------------------------------------------------*/
 
@@ -41,11 +41,11 @@ void lc_vector_mul(uint8_t coef, uint8_t* data, uint16_t size,
 		   uint8_t log2_nb_bit_coef, uint8_t* result);
 
 void lc_vector_set(uint8_t* data, uint16_t size, uint8_t log2_nb_bit_coef,
-		   uint16_t coef_index, uint8_t coef_value);
+		   uint16_t coef_pos, uint8_t coef_value);
 
 uint8_t lc_vector_get(uint8_t* data, uint16_t size, uint8_t log2_nb_bit_coef,
-		      uint16_t coef_index);
+		      uint16_t coef_pos);
 
 /*---------------------------------------------------------------------------*/
 
-#endif /* __LINEAR_CODING_H__ */
+#endif /* __LINEAR_CODE_H__ */

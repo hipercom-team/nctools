@@ -11,7 +11,7 @@
 /*---------------------------------------------------------------------------*/
 
 void packet_set_init(packet_set_t* set, uint8_t log2_nb_bit_coef,
-		     notify_decoded_func notify_func)
+		     notify_decoded_func_t notify_func)
 {
   uint16_t i;
   for (i=0; i<MAX_CODED_PACKET; i++) {
@@ -37,10 +37,16 @@ uint16_t packet_get_id_of_coef_pos(packet_set_t* set, uint16_t coef_pos)
   return set->pos_to_id[coef_pos % MAX_CODED_PACKET];
 }
 
-static uint16_t packet_set_reduce(packet_set_t* set, coded_packet_t* pkt,
-				  uint16_t* result_coded_index)
+static uint16_t packet_set_reduce
+(packet_set_t* set, coded_packet_t* pkt,
+ uint16_t* result_non_reduction_count,
+ uint16_t* result_reduction_success_count,
+ uint16_t* result_reduction_fail_count)
 {
-  uint16_t reduction_fail_count = 0;
+  uint16_t result_coef_pos = COEF_INDEX_NONE;
+  *result_non_reduction_count = 0;
+  *result_reduction_success_count = 0;
+  *result_reduction_fail_count = 0;
 
   REQUIRE( !coded_packet_is_empty_safe(pkt) );
   uint16_t coef_pos;
@@ -50,8 +56,11 @@ static uint16_t packet_set_reduce(packet_set_t* set, coded_packet_t* pkt,
     if (coef == 0)
       continue;
     uint16_t packet_id = coded_packet_get_id_of_coef_pos(set, coef_pos);
-    if (packet_id == PACKET_ID_NONE)
+    if (packet_id == PACKET_ID_NONE) {
+      result_coef_pos = coef_pos;
+      (*result_non_reduction_count) ++;
       continue;
+    }
 
     coded_packet_t* base_pkt = &set->coded_packet[packet_id];
     ASSERT( coded_packet_get_coef(base_pkt, coef_pos) == 1 );
@@ -65,20 +74,23 @@ static uint16_t packet_set_reduce(packet_set_t* set, coded_packet_t* pkt,
     uint16_t coef_pos_max = MAX(coded_packet->coef_index_max,
 				base_packet->coef_index_max);
     if (coef_pos_max-coef_pos_min >= (1<<coded_packet_log2_window(base_pkt))) {
-      reduction_fail_count++;
+      (*result_reduction_fail_count)++;
       continue;
     }
-    
+
+    /* reduce by coded_packet */
+    (*result_reduction_success_count)++;
     coded_packet_add_mult(pkt, lc_neg(coef), base_pkt);
+
     bool is_empty = coded_packet_adjust_min_max_coef(pkt);
     if (is_empty) {
-      /* it is possible that reduction_fail_count > 0 and still a empty
+      /* note: it is possible that reduction_fail_count > 0 and still a empty
 	 packet is obtained (e.g. second arrival of the same packet) */
-      *result_coef_index = COEF_INDEX_NONE;
-      return reduction_fail_count;
+      return COEF_INDEX_NONE;
     }
   }
-
+  ENSURE( result_coef_pos != COEF_INDEX_NONE );
+  return result_coef_pos;
 }
 
 uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt)
