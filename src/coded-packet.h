@@ -74,6 +74,12 @@ bool coded_packet_adjust_min_max_coef(coded_packet_t* pkt);
 static inline bool coded_packet_is_empty(coded_packet_t* pkt)
 { return !coded_packet_adjust_min_max_coef(pkt); }
 
+static inline bool coded_packet_was_decoded(coded_packet_t* pkt)
+{ return pkt->coef_pos_min == pkt->coef_pos_max; /* ok if empty */ } 
+
+static inline bool coded_packet_was_empty(coded_packet_t* pkt)
+{ return pkt->coef_pos_min == COEF_POS_NONE; } 
+
 static inline void coded_packet_to_mul(coded_packet_t* pkt, uint8_t coef)
 { lc_vector_mul(coef, pkt->content.u8, COEF_HEADER_SIZE+pkt->data_size,
 		pkt->log2_nb_bit_coef, pkt->content.u8); }
@@ -94,9 +100,9 @@ void coded_packet_add_mult
 
 bool coded_packet_is_empty_safe(coded_packet_t* pkt);
 
-#ifdef WITH_FPRINTF
+#ifdef CONF_WITH_FPRINTF
 void coded_packet_pywrite(FILE* out, coded_packet_t* p);
-#endif /* WITH_FPRINTF */
+#endif /* CONF_WITH_FPRINTF */
 
 static inline uint8_t* coded_packet_data(coded_packet_t* p)
 { return p->content.u8 + COEF_HEADER_SIZE; }

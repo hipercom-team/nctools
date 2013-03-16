@@ -26,11 +26,18 @@
 #include <unistd.h>
 
 #define ASSERT( x ) assert ( x )
+
 #define FATAL(...)				\
   BEGIN_MACRO					\
      fprintf(stderr, "FATAL: " __VA_ARGS__);	\
      fprintf(stderr, "\n");			\
      exit(1); \
+  END_MACRO
+
+#define WARN(...)				\
+  BEGIN_MACRO					\
+     fprintf(stderr, "WARNING: " __VA_ARGS__);	\
+     fprintf(stderr, "\n");			\
   END_MACRO
 
 /*---------------------------------------------------------------------------*/

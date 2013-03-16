@@ -15,30 +15,56 @@
 
 /*---------------------------------------------------------------------------*/
 
+typedef struct {
+  unsigned int non_reduction;
+  unsigned int reduction_success;
+  unsigned int reduction_failure;
+  unsigned int coef_pos_too_low;
+  unsigned int coef_pos_too_high;
+  unsigned int elimination;
+  unsigned int decoded;
+} reduction_stat_t;
+
+static inline void reduction_stat_init(reduction_stat_t* stat)
+{ memset(stat, 0, sizeof(reduction_stat_t)); }
+
+/*---------------------------------------------------------------------------*/
+
+#ifdef CONF_MAX_CODED_PACKET
+#define MAX_CODED_PACKET CONFIG_MAX_CODED_PACKET
+#else  /* CONF_MAX_CODED_PACKET */
 #define MAX_CODED_PACKET 128
+#endif /* CONF_MAX_CODED_PACKET */
 
 struct s_packet_set_t;
 
-typedef void (*notify_decoded_func_t) 
+typedef void (*notify_packet_decoded_func_t) 
 (struct s_packet_set_t* packet_set, uint16_t packet_index);
 
-#define PACKET_ID_NONE 0xffffu
+typedef void (*notify_set_full_func_t) 
+(struct s_packet_set_t* packet_set, uint16_t required_min_coef_pos);
+
+#define PACKET_ID_NONE 0xfffeu
 
 typedef struct s_packet_set_t {
   coded_packet_t coded_packet[MAX_CODED_PACKET];
   uint16_t id_to_pos[MAX_CODED_PACKET];
   uint16_t pos_to_id[MAX_CODED_PACKET];
-  notify_decoded_func_t notify_decoded_func;
+  notify_packet_decoded_func_t notify_packet_decoded_func;
+  notify_set_full_func_t notify_set_full_func;
 
   uint16_t coef_pos_min; 
   uint16_t coef_pos_max;
   uint8_t log2_nb_bit_coef;
 } packet_set_t;
 
-void packet_set_init(packet_set_t* set, uint8_t log2_nb_bit_coef,
-		     notify_decoded_func_t notify_func);
 
-uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt);
+void packet_set_init(packet_set_t* set, uint8_t log2_nb_bit_coef,
+		     notify_packet_decoded_func_t notify_packet_decoded_func,
+		     notify_set_full_func_t notify_set_full_func);
+
+uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt,
+			reduction_stat_t* stat);
 
 /*---------------------------------------------------------------------------*/
 

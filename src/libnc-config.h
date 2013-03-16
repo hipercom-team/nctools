@@ -10,8 +10,8 @@
 #define __LIBNC_CONFIG_H__
 
 
-#define WITH_FPRINTF
-
+#define CONF_WITH_FPRINTF
+#undef CONF_MAX_CODED_PACKET
 
 #endif /* __LIBNC_CONFIG_H__ */
 

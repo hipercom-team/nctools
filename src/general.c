@@ -10,8 +10,10 @@
 
 /*---------------------------------------------------------------------------*/
 
-#ifdef WITH_FPRINTF
+#ifdef CONF_WITH_FPRINTF
 
+/* write a data block as a python string with hex escape, 
+   e.g. {1,0x40,0xff} -> '\x01\x40\xff' */
 void data_string_pywrite(FILE* out, uint8_t* data, int data_size)
 {
   int i;
@@ -21,6 +23,6 @@ void data_string_pywrite(FILE* out, uint8_t* data, int data_size)
   fprintf(out, "'");
 }
 
-#endif /* WITH_FPRINTF */
+#endif /* CONF_WITH_FPRINTF */
 
 /*---------------------------------------------------------------------------*/

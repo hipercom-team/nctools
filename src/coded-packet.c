@@ -248,7 +248,7 @@ bool coded_packet_is_empty_safe(coded_packet_t* pkt)
 
 /*---------------------------------------------------------------------------*/
 
-#ifdef WITH_FPRINTF
+#ifdef CONF_WITH_FPRINTF
 void coded_packet_pywrite(FILE* out, coded_packet_t* p)
 { 
   fprintf(out, "{ 'type':'coded-packet'");
@@ -282,6 +282,6 @@ void coded_packet_internal_pywrite(FILE* out, coded_packet_t* p)
   data_string_pywrite(out, coded_packet_data(p), CODED_PACKET_SIZE);
   fprintf(out," }");  
 }
-#endif /* WITH_FPRINTF */
+#endif /* CONF_WITH_FPRINTF */
 
 /*---------------------------------------------------------------------------*/

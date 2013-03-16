@@ -9,8 +9,7 @@ CFLAGS += -Wall -g3
 
 #------------------------------
 
-SRCS =  general.c linear-code.c coded-packet.c 
-#packet-set.c
+SRCS =  general.c linear-code.c coded-packet.c packet-set.c
 
 HEADERS = $(SRCS:.c=.h)
 

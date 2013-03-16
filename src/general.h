@@ -31,6 +31,7 @@
 #define BOOL_TRUE  1
 
 #define REQUIRE(...) ASSERT(__VA_ARGS__)
+#define ENSURE(...)  ASSERT(__VA_ARGS__)
 
 #define MAX(a,b) ((a) > (b) ? a : b)
 #define MIN(a,b) ((a) < (b) ? a : b)
@@ -59,11 +60,11 @@ static inline uint16_t max_except(uint16_t v1, uint16_t v2, uint16_t ignored)
 
 /*---------------------------------------------------------------------------*/
 
-#ifdef WITH_FPRINTF 
+#ifdef CONF_WITH_FPRINTF 
 
 void data_string_pywrite(FILE* out, uint8_t* data, int data_size);
 
-#endif /* WITH_FPRINTF */
+#endif /* CONF_WITH_FPRINTF */
 
 /*---------------------------------------------------------------------------*/
 

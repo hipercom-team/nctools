@@ -190,7 +190,7 @@ def generateLinearCombList(packetList, nbComb, window, seed):
     return result
 
 #---------------------------------------------------------------------------
-#
+# Decode source packets from a list of CodedPacket
 #---------------------------------------------------------------------------
 
 def decode(codedPacketList):
@@ -230,3 +230,20 @@ def decode(codedPacketList):
     return codedPacketList, posToBase, baseToPos
 
 #---------------------------------------------------------------------------
+# Packet Set
+#---------------------------------------------------------------------------
+
+def allocCPacketSet(log2NbBitCoef):
+    result = new_packetSet()
+    packet_set_init(result, log2NbBitCoef, None, None)
+    return result
+
+def freeCPacketSet(cPacketSet):
+    delete_packetSet(cPacketSet)
+
+l = 3
+ps = allocCPacketSet(l)
+packet_set_pyrepr(ps)
+
+#---------------------------------------------------------------------------
+

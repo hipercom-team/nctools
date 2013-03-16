@@ -29,17 +29,29 @@
 #include "coded-packet.h"
 #include "coded-packet.c"
 
+#include "packet-set.h"
+#include "packet-set.c"
+
 #include "general.c"
 %}
 
 %include "linear-code.h"
 %include "coded-packet.h"
+%include "packet-set.h"
+%include "macro-pywrite.h"
 
 %pointer_functions(coded_packet_t, codedPacket)
+%pointer_functions(packet_set_t, packetSet)
 
 //---------------------------------------------------------------------------
 
+
+
 %inline %{
+
+#include "macro-pywrite.h"
+
+  WRAP_PYWRITE(packet_set_pyrepr, packet_set_pywrite, packet_set_t*);
   
   const unsigned int macro_LOG2_COEF_HEADER_SIZE = LOG2_COEF_HEADER_SIZE;
   const unsigned int macro_COEF_HEADER_SIZE = COEF_HEADER_SIZE;
