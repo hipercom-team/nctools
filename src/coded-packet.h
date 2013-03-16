@@ -1,13 +1,13 @@
 /*---------------------------------------------------------------------------
- * Linear coding of packets
+ * Linearly coded packets
  *---------------------------------------------------------------------------
  * Author: Cedric Adjih
  * Copyright 2013 Inria
  * All rights reserved. Distributed only with permission.
  *---------------------------------------------------------------------------*/
 
-#ifndef __LINEAR_PACKET_H__
-#define __LINEAR_PACKET_H__
+#ifndef __CODED_PACKET_H__
+#define __CODED_PACKET_H__
 
 /*---------------------------------------------------------------------------*/
 
@@ -15,7 +15,7 @@
 #include <string.h>
 
 #include "general.h"
-#include "linear-operation.h"
+#include "linear-coding.h"
 
 /*---------------------------------------------------------------------------*/
 
@@ -78,15 +78,22 @@ void coded_packet_to_add(coded_packet_t* result,
 			 coded_packet_t* p1,
 			 coded_packet_t* p2);
 
-//void coded_packet_destructive_linear_combination
-//(uint8_t coef1, coded_packet_t* p1_and_result, 
-// uint8_t coef2, coded_packet_t* p2);
-
 void coded_packet_add_mult
 (coded_packet_t* p1, uint8_t coef2, coded_packet_t* p2);
 
 bool coded_packet_is_empty_safe(coded_packet_t* pkt);
 
+#ifdef WITH_FPRINTF
+void coded_packet_pywrite(FILE* out, coded_packet_t* p);
+#endif /* WITH_FPRINTF */
+
+static inline uint8_t* coded_packet_data(coded_packet_t* p)
+{ return p->content.u8 + COEF_HEADER_SIZE; }
+
+/* warning slow function, also may change p1, p2 by calling
+   coded_packet_adjust_min_max_coef(...) */
+bool coded_packet_is_similar(coded_packet_t* p1, coded_packet_t* p2);
+
 /*---------------------------------------------------------------------------*/
 
-#endif /* __LINEAR_PACKET_H__ */
+#endif /* __CODED_PACKET_H__ */

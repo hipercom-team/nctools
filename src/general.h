@@ -13,6 +13,8 @@
 
 #include <stdint.h>
 
+#include "libnc-config.h"
+
 /*---------------------------------------------------------------------------*/
 
 #define BEGIN_MACRO do {
@@ -56,5 +58,14 @@ static inline uint16_t max_except(uint16_t v1, uint16_t v2, uint16_t ignored)
 #include "platform-linux.h"
 
 /*---------------------------------------------------------------------------*/
+
+#ifdef WITH_FPRINTF 
+
+void data_string_pywrite(FILE* out, uint8_t* data, int data_size);
+
+#endif /* WITH_FPRINTF */
+
+/*---------------------------------------------------------------------------*/
+
 
 #endif /* __GENERAL_H__ */

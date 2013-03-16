@@ -14,8 +14,6 @@
 %include "typemaps.i"
 %include "cpointer.i"
 
- //%array_functions(uint8_t, u8array)
- //%array_functions(uint16_t, u16array)
 %array_class(uint8_t, u8array)
 %array_class(uint16_t, u16array)
 %pointer_functions(uint8_t,  u8ptr)
@@ -25,15 +23,17 @@
 //---------------------------------------------------------------------------
 
 %{
-#include "linear-operation.h"
-#include "linear-operation.c"
+#include "linear-coding.h"
+#include "linear-coding.c"
 
-#include "linear-packet.h"
-#include "linear-packet.c"
+#include "coded-packet.h"
+#include "coded-packet.c"
+
+#include "general.c"
 %}
 
-%include "linear-operation.h"
-%include "linear-packet.h"
+%include "linear-coding.h"
+%include "coded-packet.h"
 
 %pointer_functions(coded_packet_t, codedPacket)
 
@@ -77,6 +77,9 @@
     }
     return count;
   }
+
+  uint8_t* cast_to_u8ptr(char* data)
+  { return (uint8_t*)data; }
 
 %}
 

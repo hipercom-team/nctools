@@ -5,11 +5,11 @@
 #---------------------------------------------------------------------------
 
 PYTHON=python
-CFLAGS += -Wall
+CFLAGS += -Wall -g3
 
 #------------------------------
 
-SRCS = linear-operation.c linear-packet.c general.c
+SRCS =  general.c linear-coding.c coded-packet.c
 
 HEADERS = $(SRCS:.c=.h)
 
@@ -19,7 +19,7 @@ OBJS = $(SRCS:.c=.o)
 # Main targets
 #---------------------------------------------------------------------------
 
-all: libnc.a _libncmodule.so
+all: libnc.a _libncmodule.so test-coded-packet
 
 #---------------------------------------------------------------------------
 # Dependencies
@@ -51,7 +51,7 @@ linear-operation.o: linear-operation.c \
 # Library
 #---------------------------------------------------------------------------
 
-libnc.a: ${OBJS} Makefile
+libnc.a: ${OBJS}
 	${AR} cru $@ ${OBJS}
 
 #--------------------------------------------------------------------------
@@ -73,6 +73,9 @@ libncmodule.c: libnc.i Makefile ${SRCS} ${HEADERS}
 unittest: all
 	python testLibNC.py
 
+test-coded-packet: test-coded-packet.o libnc.a
+	${CC} ${CFLAGS} -o $@ $< -lnc -L.
+
 #---------------------------------------------------------------------------
 # Cleaning
 #---------------------------------------------------------------------------
@@ -80,8 +83,9 @@ unittest: all
 clean:
 	rm -f *.a *.so *.o *.d *~ *.pyc 
 	rm -f libncmodule.c libncmodule.py
+	rm -f test-coded-packet
 
 really-clean: clean
-	rm -rf build table-*.pydat table-*gf*.c
+	rm -rf build table-*.pydat table-*gf*.c 
 
 #---------------------------------------------------------------------------

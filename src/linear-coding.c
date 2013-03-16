@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
- * Linear operations (GF(2), GF(4), GF(16) and GF(256))
+ * Linear coding operations (GF(2), GF(4), GF(16) and GF(256))
  *---------------------------------------------------------------------------
  * Author: Cedric Adjih
  * Copyright 2013 Inria
@@ -9,7 +9,7 @@
 #include <string.h>
 
 #include "general.h"
-#include "linear-operation.h"
+#include "linear-coding.h"
 
 /*--------------------------------------------------*/
 

@@ -6,8 +6,9 @@
 # All rights reserved. Distributed only with permission.
 #---------------------------------------------------------------------------
 
-from libncmodule import *
+import struct, hashlib
 
+from libncmodule import *
 
 MaxLog2NbBitCoef = 3 # included
 Log2BitsPerByte = 3
@@ -24,6 +25,12 @@ BitsPerByte = (1 << Log2BitsPerByte)
 def allocCCodedPacket(log2NbBitCoef):
     result = new_codedPacket()
     coded_packet_init(result, log2NbBitCoef)
+    return result
+
+def createCCodedPacket(baseIndex, data, log2NbBitCoef):
+    result = new_codedPacket()
+    coded_packet_init_from_base_packet(result, log2NbBitCoef, baseIndex,
+                                       cast_to_u8ptr(data), len(data))
     return result
 
 def freeCCodedPacket(cCodedPacket):
@@ -44,8 +51,11 @@ def scaleCCodedPacket(coef, p):
     coded_packet_to_mul(result, coef)
     return result
 
+#--------------------------------------------------
+
 class CodedPacket:
-    def __init__(self, log2NbBitCoef = None, content = None):
+    def __init__(self, log2NbBitCoef = None, content = None,
+                 coefAndData = None):
         if content != None:
             self.content = content
         else:
@@ -53,8 +63,8 @@ class CodedPacket:
             self.content = allocCCodedPacket(log2NbBitCoef)
 
     def __del__(self):
-        return # XXX: remove
-        freeCCodedPacket(self.content)
+        try: freeCCodedPacket(self.content)
+        except: pass
         self.content = None
 
     def clone(self):
@@ -65,16 +75,14 @@ class CodedPacket:
             r = "0"
         else:
             rList = []
-            for i in range(self.content.coef_index_min, 
-                           self.content.coef_index_max+1):
-                coef = coded_packet_get_coef(self.content, i)
-                if coef != 0:
-                    rList.append("%s.P%s" % (coef,i))
+            coefTable = self.getCoefTable()
+            for i in sorted(coefTable.keys()):
+                rList.append("%s.P%s" % (coefTable[i],i))
             r = "+".join(rList)
         if self.content.coef_index_min != macro_COEF_INDEX_NONE:
             r += "[%s:%s]" % (self.content.coef_index_min, 
                               self.content.coef_index_max)
-        return r + "/GF(2^%s)" % (1<<self.content.log2_nb_bit_coef)
+        return r + "/GF(%s)" % (1<<(1<<self.content.log2_nb_bit_coef))
 
     __repr__ = __str__
 
@@ -89,6 +97,7 @@ class CodedPacket:
         return CodedPacket(content = addCCodedPacket(self.content, 
                                                      other.content))
     __sub__ = __add__
+    __xor__ = __add__
 
     def __rmul__(self, coef):
         return CodedPacket(content = scaleCCodedPacket(coef, self.content))
@@ -97,32 +106,128 @@ class CodedPacket:
         return [u8block_getitem(self.content.content.u8, i)
                 for i in range(macro_COEF_HEADER_SIZE) ]
 
+    def getCoefTable(self):
+        result = {}
+        for i in range(self.content.coef_index_min,
+                       self.content.coef_index_max+1):
+            coef = coded_packet_get_coef(self.content, i)
+            if coef != 0:
+                result[i] = coef
+        return result
+
+    def getData(self):
+        r = ""
+        for i in range(self.content.data_size):
+            c = u8block_getitem(self.content.content.u8, 
+                                i+macro_COEF_HEADER_SIZE)
+            r += chr(c)
+        return r
+            
     def adjust(self):
         coded_packet_adjust_min_max_coef(self.content)
-            
+
+    def getL(self):
+        return self.content.log2_nb_bit_coef
+
+
+def makeCodedPacket(baseIndex, data, log2NbBitCoef):
+    return CodedPacket(content = createCCodedPacket(
+            baseIndex, data, log2NbBitCoef))
+
+#--------------------------------------------------
 
 def adjusted(p):
     result = p.clone()
     result.adjust()
     return result
 
+#--------------------------------------------------
 
+def makeCodedPacketList(l, n):
+    nbHeaderCoef = (macro_COEF_HEADER_SIZE*8) // (1 << l)
+    n = nbHeaderCoef
+    result = []
+    for i in range(n):
+        data = "\x01<packet %s GF(%s)>\x00" % (i, 1<<(1<<l))
+        data += "*"*(i%5) + "\x02"
+        p = makeCodedPacket(i, data, l)
+        result.append(p)
+    return result
 
-l = 3
+def floatFromHash(data):
+    """return a number in [0,1[ computed from the hash of data"""
+    hashInt = struct.unpack("!I", hashlib.md5(data).digest()[0:4])[0]
+    return hashInt /float (1L<<32L)
+    
+def intFromHash(intBound, data):
+    return int(floatFromHash(data) * intBound)
 
-nbHeaderCoef = (macro_COEF_HEADER_SIZE*8) // (1 << l)
-n = nbHeaderCoef
-P = []
-
-for i in range(nbHeaderCoef*2):
-    print i
-    p = CodedPacket(l) 
-    p[i] = 1
-    P.append(p)
-
-#print P[0]+P[n-1]
+def generateLinearCombList(packetList, nbComb, window, seed):
+    if len(packetList) == 0:
+        return []
+    l = packetList[0].content.log2_nb_bit_coef
+    result = []
+    i = 0
+    while len(result) != nbComb:
+        r = "[%s] comb#%s" % (seed, i)
+        i += 1
+        firstIndex = intFromHash( max(len(packetList)-window, 0), r)
+        subPacketList = []
+        for j in range(window):
+            if firstIndex+j > len(packetList):
+                continue
+            r2 = r + " at%s" % j
+            if intFromHash(2, r2) == 0:
+                continue
+            coef = 1+intFromHash((1<<(1<<l))-1, r2+" coef")
+            subPacketList.append(coef * packetList[firstIndex+j])
+        if len(subPacketList) == 0:
+            continue
+        p = subPacketList[0]
+        for q in subPacketList[1:]:
+            p += q
+        result.append(p)
+    return result
 
 #---------------------------------------------------------------------------
 #
 #---------------------------------------------------------------------------
 
+def decode(codedPacketList):
+    def getCoefMax(codedPacket):
+        v = codedPacket.content.coef_index_max
+        return v
+    codedPacketList = [adjusted(x) for x in codedPacketList]
+    codedPacketList.sort(key=getCoefMax)
+
+    indexToBase = {}
+    baseToIndex = {}
+
+    for i in range(len(codedPacketList)):
+        p = codedPacketList[i]
+        p.adjust()
+        if coded_packet_is_empty(p.content):
+            indexToBase[i] = None
+            continue
+        coefIndex = p.content.coef_index_max
+        assert coefIndex not in baseToIndex
+
+        baseToIndex[coefIndex] = i
+        indexToBase[i] = coefIndex
+        assert p[coefIndex] != 0
+        p = lc_inv(p[coefIndex], p.getL()) * p
+        codedPacketList[i] = p
+
+        for j in range(len(codedPacketList)):
+            if i == j: continue
+            q = codedPacketList[j]
+            if q.content.coef_index_min <= coefIndex <= q.content.coef_index_max:
+                cq = q[coefIndex]
+                if cq != 0:
+                    q = q - cq * p
+                    q.adjust()
+                    codedPacketList[j] = q
+    return codedPacketList, indexToBase, baseToIndex
+        
+
+#---------------------------------------------------------------------------

@@ -6,7 +6,7 @@
  * All rights reserved. Distributed only with permission.
  *---------------------------------------------------------------------------*/
 
-#include "linear-packet.h"
+#include "coded-packet.h"
 
 /*---------------------------------------------------------------------------*/
 
@@ -117,6 +117,36 @@ bool coded_packet_adjust_min_max_coef(coded_packet_t* pkt)
   return result;
 }
 
+bool coded_packet_is_similar(coded_packet_t* p1, coded_packet_t* p2)
+{
+  bool non_empty1 = coded_packet_adjust_min_max_coef(p1);
+  bool non_empty2 = coded_packet_adjust_min_max_coef(p2);
+  if (!non_empty1 || !non_empty2)
+    return non_empty1 == non_empty2;
+  if (p1->coef_index_min != p2->coef_index_min)
+    return false;
+  if (p1->coef_index_max != p2->coef_index_max)
+    return false;  
+  uint16_t i;
+  for (i=p1->coef_index_min;i<p1->coef_index_max;i++) 
+    if (coded_packet_get_coef(p1, i) != coded_packet_get_coef(p2, i))
+      return false;
+  uint16_t common_size = MIN(p1->data_size, p2->data_size);
+  uint16_t max_size = MAX(p1->data_size, p2->data_size);
+  uint8_t* d1 = coded_packet_data(p1);
+  uint8_t* d2 = coded_packet_data(p2);
+  for (i=0; i<common_size; i++)
+    if (d1[i] != d2[i])
+      return false;
+  for (i=common_size; i<max_size; i++) {
+    if (i < p1->data_size && d1[i] != 0)
+      return false;
+    if (i < p2->data_size && d2[i] != 0)
+      return false;  
+  }
+  return true;
+}
+
 void coded_packet_init(coded_packet_t* pkt, uint8_t log2_nb_bit_coef)
 {
   ASSERT( log2_nb_bit_coef <= MAX_LOG2_NB_BIT_COEF );
@@ -146,6 +176,9 @@ void coded_packet_to_add(coded_packet_t* result,
 			 coded_packet_t* p1,
 			 coded_packet_t* p2)
 {
+  ASSERT( p1->log2_nb_bit_coef == p2->log2_nb_bit_coef );
+
+  result->log2_nb_bit_coef = p1->log2_nb_bit_coef;
   result->coef_index_min = min_except(p1->coef_index_min, p2->coef_index_min,
 				      COEF_INDEX_NONE);
   result->coef_index_max = max_except(p1->coef_index_max, p2->coef_index_max,
@@ -162,6 +195,7 @@ void coded_packet_to_add(coded_packet_t* result,
   lc_vector_add(p1->content.u8, COEF_HEADER_SIZE + p1->data_size, 
 		p2->content.u8, COEF_HEADER_SIZE + p2->data_size,
 		result->content.u8, &result->data_size);
+  result->data_size -= COEF_HEADER_SIZE;
 }
 
 /* p1 pointer MUST be different from p2 pointer */
@@ -199,10 +233,42 @@ bool coded_packet_is_empty_safe(coded_packet_t* pkt)
   return true;
 }
 
+/*---------------------------------------------------------------------------*/
 
 #ifdef WITH_FPRINTF
-void coded_packet_repr(coded_packet_t* p, FILE* out)
-{ }
-#endif
+void coded_packet_pywrite(FILE* out, coded_packet_t* p)
+{ 
+  fprintf(out, "{ 'type':'coded-packet'");
+  fprintf(out, ", 'l':%u", p->log2_nb_bit_coef);
+  fprintf(out, ", 'dataSize': %u", p->data_size);
+  fprintf(out, ", 'coefIndexMin':%u, 'coefIndexMax':%u", 
+	  p->coef_index_min, p->coef_index_max);
+  fprintf(out, ", 'coefValue':[");
+  uint16_t i;
+  for (i=p->coef_index_min; i<=p->coef_index_max; i++) {
+    if (i > p->coef_index_min)
+      fprintf(out, ", ");
+    fprintf(out, "%u", coded_packet_get_coef(p,i));
+  }
+  fprintf(out, "]");
+  fprintf(out, ", data:");
+  data_string_pywrite(out, coded_packet_data(p), p->data_size);
+  fprintf(out, " }");
+}
+
+void coded_packet_internal_pywrite(FILE* out, coded_packet_t* p)
+{ 
+  fprintf(out, "{ 'type':'coded-packet'");
+  fprintf(out, ", 'l':%u", p->log2_nb_bit_coef);
+  fprintf(out, ", 'dataSize': %u", p->data_size);
+  fprintf(out, ", 'coefIndexMin':%u, 'coefIndexMax':%u", 
+	  p->coef_index_min, p->coef_index_max);
+  fprintf(out, ", 'coefData':");
+  data_string_pywrite(out, p->content.u8, COEF_HEADER_SIZE);
+  fprintf(out, ", 'data':");
+  data_string_pywrite(out, coded_packet_data(p), CODED_PACKET_SIZE);
+  fprintf(out," }");  
+}
+#endif /* WITH_FPRINTF */
 
 /*---------------------------------------------------------------------------*/

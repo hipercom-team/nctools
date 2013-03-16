@@ -6,8 +6,8 @@
  * All rights reserved. Distributed only with permission.
  *---------------------------------------------------------------------------*/
 
-#ifndef __LINEAR_OPERATION_H__
-#define __LINEAR_OPERATION_H__
+#ifndef __LINEAR_CODING_H__
+#define __LINEAR_CODING_H__
 
 /*---------------------------------------------------------------------------*/
 
@@ -48,4 +48,4 @@ uint8_t lc_vector_get(uint8_t* data, uint16_t size, uint8_t log2_nb_bit_coef,
 
 /*---------------------------------------------------------------------------*/
 
-#endif /* __LINEAR_OPERATION_H__ */
+#endif /* __LINEAR_CODING_H__ */

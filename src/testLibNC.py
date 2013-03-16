@@ -12,7 +12,7 @@ import libnc
 
 #---------------------------------------------------------------------------
 
-class Test(unittest.TestCase):
+class TestLinearCoding(unittest.TestCase):
     def setUp(self):
         pass
 
@@ -175,6 +175,58 @@ class Test(unittest.TestCase):
                 result = getVector(w, sw)
                 expectedResult = set1.symmetric_difference(set2)
                 self.assertEqual(result, expectedResult)
+
+
+class TestLinearCoding(unittest.TestCase):
+    pass # XXX
+
+class TestCodedPacket(unittest.TestCase):
+    def setUp(self):
+        self.P = {}
+        for l in range(libnc.MaxLog2NbBitCoef+1):
+            nbHeaderCoef = (libnc.macro_COEF_HEADER_SIZE*8) // (1 << l)
+            n = nbHeaderCoef
+            self.P[l] = libnc.makeCodedPacketList(l, 4*n)
+
+    def checkPacketAdd(self, l):
+        P = self.P[l]
+        current = P[0].clone()
+        for i in range(len(P)-1):
+            q = P[i] + P[i+1]
+            current += q
+            current.adjust()
+        same = libnc.coded_packet_is_similar(current.content, P[-1].content)
+        self.assertTrue(same)
+
+    def test_packetAdd(self):
+        for l in range(libnc.MaxLog2NbBitCoef+1):
+            self.checkPacketAdd(l)
+
+    def checkPacketSimilar(self, l):
+        P = self.P[l]
+        for i in range(len(P)):
+            for j in range(len(P)):
+                same = libnc.coded_packet_is_similar(P[i].content, P[j].content)
+                self.assertEqual( same, i==j )
+
+    def test_packetSimilar(self):
+        for l in range(libnc.MaxLog2NbBitCoef+1):
+            self.checkPacketSimilar(l)
+
+    def test_decode(self):
+        baseList = self.P[3]
+        window = 4
+        codedPacketList = libnc.generateLinearCombList(
+            baseList, 2*len(baseList), window, 1)
+        decodedList, indexToBase, baseToIndex = libnc.decode(codedPacketList)
+        for baseIndex, packetIndex in baseToIndex.iteritems():
+            p = decodedList[packetIndex]
+            if p.content.coef_index_min == p.content.coef_index_max:
+                print baseIndex, p, repr(p.getData())
+                same = libnc.coded_packet_is_similar(
+                    p.content, baseList[baseIndex].content)
+                self.assertTrue(same)
+        
 
 #---------------------------------------------------------------------------
 
