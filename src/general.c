@@ -19,7 +19,7 @@ void data_string_pywrite(FILE* out, uint8_t* data, int data_size)
   int i;
   fprintf(out, "'");
   for (i=0; i<data_size; i++)
-    printf("\\x%02x", data[i]);
+    fprintf(out, "\\x%02x", data[i]);
   fprintf(out, "'");
 }
 

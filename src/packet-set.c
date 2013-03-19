@@ -12,7 +12,8 @@
 
 void packet_set_init(packet_set_t* set, uint8_t log2_nb_bit_coef,
 		     notify_packet_decoded_func_t notify_packet_decoded_func,
-		     notify_set_full_func_t notify_set_full_func)
+		     notify_set_full_func_t notify_set_full_func,
+		     void* notif_data)
 {
   uint16_t i;
   for (i=0; i<MAX_CODED_PACKET; i++) {
@@ -25,6 +26,7 @@ void packet_set_init(packet_set_t* set, uint8_t log2_nb_bit_coef,
 
   set->notify_packet_decoded_func = notify_packet_decoded_func;
   set->notify_set_full_func = notify_set_full_func;
+  set->notif_data = notif_data;
 }
 
 uint16_t packet_set_get_id_of_coef_pos(packet_set_t* set, uint16_t coef_pos)
@@ -47,10 +49,12 @@ static uint16_t packet_set_reduce
   REQUIRE( set->log2_nb_bit_coef == pkt->log2_nb_bit_coef );
   uint8_t l = set->log2_nb_bit_coef;
 
-  uint16_t result_coef_pos = COEF_POS_NONE;
-  bool is_empty = coded_packet_adjust_min_max_coef(pkt);
+  bool is_empty = !coded_packet_adjust_min_max_coef(pkt);
+  if (is_empty)
+    return COEF_POS_NONE;
 
-  uint16_t coef_pos;
+  uint16_t coef_pos; 
+  /* note that pkt->coef_pos_min|_max may change during loop */
   for (coef_pos = pkt->coef_pos_min; coef_pos <= pkt->coef_pos_max;
        coef_pos ++) {
 
@@ -64,7 +68,6 @@ static uint16_t packet_set_reduce
       continue;
     uint16_t packet_id = packet_set_get_id_of_coef_pos(set, coef_pos);
     if (packet_id == PACKET_ID_NONE) {
-      result_coef_pos = coef_pos;
       stat->non_reduction ++;
       continue;
     }
@@ -86,9 +89,17 @@ static uint16_t packet_set_reduce
     /* reduce by coded_packet */
     stat->reduction_success ++;
     coded_packet_add_mult(pkt, lc_neg(coef, l), base_pkt);
-    is_empty = coded_packet_adjust_min_max_coef(pkt);
+    is_empty = !coded_packet_adjust_min_max_coef(pkt);
   }
-  return result_coef_pos;
+
+  uint16_t i;
+  for (i = pkt->coef_pos_min; i <= pkt->coef_pos_max; i ++) {
+    coef_pos = pkt->coef_pos_max - i + pkt->coef_pos_min; /* start from high */
+    if (coded_packet_get_coef(pkt, coef_pos) != 0
+	&& packet_set_get_id_of_coef_pos(set, coef_pos) == PACKET_ID_NONE)
+      return coef_pos;
+  }
+  return COEF_POS_NONE;
 }
 
 uint16_t packet_set_alloc_packet_id(packet_set_t* set)
@@ -96,7 +107,7 @@ uint16_t packet_set_alloc_packet_id(packet_set_t* set)
   /* find available packet set */
   uint16_t i;
   for (i=0; i<MAX_CODED_PACKET; i++) {
-    if (set->id_to_pos[i] == PACKET_ID_NONE) 
+    if (set->id_to_pos[i] == COEF_POS_NONE) 
       return i;
   }
   return PACKET_ID_NONE;
@@ -119,6 +130,12 @@ uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt,
     return PACKET_ID_NONE;
 
   /* check if it can be inserted as new reference for base packet at coef_pos */
+  if (set->coef_pos_min == COEF_POS_NONE) {
+    ASSERT( set->coef_pos_max == COEF_POS_NONE );
+    set->coef_pos_min = pkt->coef_pos_min;
+    set->coef_pos_max = pkt->coef_pos_max;
+  }
+
   if (pkt->coef_pos_min < set->coef_pos_min) {
     if (set->coef_pos_max - pkt->coef_pos_min >= MAX_CODED_PACKET) {
       stat->coef_pos_too_low ++;
@@ -162,13 +179,20 @@ uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt,
   set->pos_to_id[coef_pos % MAX_CODED_PACKET] = packet_id;
   set->id_to_pos[packet_id] = coef_pos;
   
-  uint8_t coef = coded_packet_get_coef(stored_pkt, packet_id);
+  uint8_t coef = coded_packet_get_coef(stored_pkt, coef_pos);
   ASSERT( coef != 0 );
   coded_packet_to_mul(stored_pkt, lc_inv(coef, l) );
 
+  if (coded_packet_was_decoded(stored_pkt)) {
+    stat->decoded ++;
+    if (set->notify_packet_decoded_func != NULL)
+      set->notify_packet_decoded_func(set, packet_id);
+  }
+
+
   /* eliminate */
   uint16_t i;
-  for (i=set->coef_pos_min; i<set->coef_pos_max; i++)
+  for (i=set->coef_pos_min; i<=set->coef_pos_max; i++)
     if (i != coef_pos && set->pos_to_id[i%MAX_CODED_PACKET] != PACKET_ID_NONE) {
       uint16_t other_packet_id = set->pos_to_id[i%MAX_CODED_PACKET];
       ASSERT( other_packet_id < MAX_CODED_PACKET );
@@ -197,12 +221,21 @@ uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt,
 
 #ifdef CONF_WITH_FPRINTF
 
+void coef_pos_pywrite(FILE*out, uint16_t coef_pos)
+{
+  if (coef_pos == COEF_POS_NONE)
+    fprintf(out, "None");
+  else fprintf(out, "%u", coef_pos);
+}
+
 void packet_set_pywrite(FILE* out, packet_set_t* set)
 {
   fprintf(out, "{ 'type':'packet-set'");
   fprintf(out, ", 'l':%u", set->log2_nb_bit_coef);
-  fprintf(out, ", 'coefPosMin':%u", set->coef_pos_min);
-  fprintf(out, ", 'coefPosMax':%u", set->coef_pos_max);
+  fprintf(out, ", 'coefPosMin':");
+  coef_pos_pywrite(out, set->coef_pos_min);
+  fprintf(out, ", 'coefPosMax':"); 
+  coef_pos_pywrite(out, set->coef_pos_max);
   fprintf(out, ", 'packetTable': {");
   uint16_t i;
   bool is_first = true;
@@ -217,15 +250,42 @@ void packet_set_pywrite(FILE* out, packet_set_t* set)
   
   fprintf(out, ", 'posToId':{");
   is_first = true;
-  for (i=set->coef_pos_min; i<=set->coef_pos_max; i++) { /* ok if empty */
-    uint16_t packet_id = set->pos_to_id[i % MAX_CODED_PACKET];
-    if (packet_id != PACKET_ID_NONE) {
+  if (set->coef_pos_min != COEF_POS_NONE)
+    for (i=set->coef_pos_min; i<=set->coef_pos_max; i++) {
+      uint16_t packet_id = set->pos_to_id[i % MAX_CODED_PACKET];
+      if (packet_id != PACKET_ID_NONE) {
+	if (is_first) is_first = false;
+	else fprintf(out, ", ");
+	fprintf(out, "%d:%d", i, packet_id);
+      }
+    }
+  fprintf(out, "}");
+
+  fprintf(out, ", 'idToPos':{");
+  is_first = true;
+  for (i=0; i<MAX_CODED_PACKET; i++) {
+    uint16_t coef_pos = set->id_to_pos[i];
+    if (coef_pos != COEF_POS_NONE) {
       if (is_first) is_first = false;
       else fprintf(out, ", ");
-      fprintf(out, "%d:%d", i, packet_id);
+      fprintf(out, "%d:%d", i, coef_pos);
     }
   }
   fprintf(out, "}");
+
+  fprintf(out, " }");
+}
+
+void reduction_stat_pywrite(FILE* out, reduction_stat_t* stat)
+{
+  fprintf(out, "{ 'type':'insert-stat'");
+  fprintf(out, ", 'nonReduc':%u", stat->non_reduction );
+  fprintf(out, ", 'reducSucces':%u", stat->reduction_success );
+  fprintf(out, ", 'reducFail':%u", stat->reduction_failure );
+  fprintf(out, ", 'coefTooLow':%u", stat->coef_pos_too_low );
+  fprintf(out, ", 'coefTooHigh':%u", stat->coef_pos_too_high );
+  fprintf(out, ", 'elim':%u", stat->elimination );
+  fprintf(out, ", 'decoded':%u", stat->decoded );
   fprintf(out, " }");
 }
 

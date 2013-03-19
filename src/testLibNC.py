@@ -177,8 +177,6 @@ class TestLinearCoding(unittest.TestCase):
                 self.assertEqual(result, expectedResult)
 
 
-#class TestLinearCoding(unittest.TestCase):
-#    pass # XXX
 
 class TestCodedPacket(unittest.TestCase):
     def setUp(self):
@@ -206,7 +204,7 @@ class TestCodedPacket(unittest.TestCase):
         P = self.P[l]
         for i in range(len(P)):
             for j in range(len(P)):
-                same = libnc.coded_packet_is_similar(P[i].content, P[j].content)
+                same = libnc.coded_packet_is_similar(P[i].content,P[j].content)
                 self.assertEqual( same, i==j )
 
     def test_packetSimilar(self):
@@ -226,7 +224,21 @@ class TestCodedPacket(unittest.TestCase):
                 same = libnc.coded_packet_is_similar(
                     p.content, baseList[basePos].content)
                 self.assertTrue(same)
-        
+
+
+class TestPacketSet:
+    def setUp(self):
+        self.P = {}
+        for l in range(libnc.MaxLog2NbBitCoef+1):
+            nbHeaderCoef = (libnc.macro_COEF_HEADER_SIZE*8) // (1 << l)
+            m = libnc.macro_MAX_CODED_PACKET
+            self.P[l] = libnc.makeCodedPacketList(l, 2*m)
+
+    def test_basic(l):
+        alloc_packet_set()
+
+TestLinearCoding = None
+TestCodedPacket = None
 
 #---------------------------------------------------------------------------
 

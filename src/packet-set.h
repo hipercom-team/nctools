@@ -50,6 +50,8 @@ typedef struct s_packet_set_t {
   coded_packet_t coded_packet[MAX_CODED_PACKET];
   uint16_t id_to_pos[MAX_CODED_PACKET];
   uint16_t pos_to_id[MAX_CODED_PACKET];
+
+  void* notif_data;
   notify_packet_decoded_func_t notify_packet_decoded_func;
   notify_set_full_func_t notify_set_full_func;
 
@@ -61,8 +63,14 @@ typedef struct s_packet_set_t {
 
 void packet_set_init(packet_set_t* set, uint8_t log2_nb_bit_coef,
 		     notify_packet_decoded_func_t notify_packet_decoded_func,
-		     notify_set_full_func_t notify_set_full_func);
+		     notify_set_full_func_t notify_set_full_func,
+		     void* notif_data);
 
+/* 
+   return the packet_id associated with the inserted packet,
+   or PACKET_ID_NONE otherwise 
+   pkt is (usually) modified by the function
+*/
 uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt,
 			reduction_stat_t* stat);
 

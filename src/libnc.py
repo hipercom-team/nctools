@@ -6,7 +6,8 @@
 # All rights reserved. Distributed only with permission.
 #---------------------------------------------------------------------------
 
-import struct, hashlib
+import struct, hashlib, pprint
+import itertools
 
 from libncmodule import *
 
@@ -233,17 +234,57 @@ def decode(codedPacketList):
 # Packet Set
 #---------------------------------------------------------------------------
 
-def allocCPacketSet(log2NbBitCoef):
+def allocCPacketSet(log2NbBitCoef, notifyObj = None):
     result = new_packetSet()
-    packet_set_init(result, log2NbBitCoef, None, None)
+    if notifyObj == None:
+        packet_set_init(result, log2NbBitCoef, None, None, None)
+    else:
+        notifyObjPtr = my_inc_ref(notifyObj)
+        packet_set_init(result, log2NbBitCoef, 
+                        py_callback_packet_decoded,
+                        py_callback_set_full,
+                        notifyObjPtr)
     return result
 
 def freeCPacketSet(cPacketSet):
+    if cPacketSet.notif_data != None:
+        my_dec_ref(cPacketSet.notif_data)
     delete_packetSet(cPacketSet)
-
-l = 3
-ps = allocCPacketSet(l)
-packet_set_pyrepr(ps)
 
 #---------------------------------------------------------------------------
 
+class DecodingRecorder:
+    def __init__(self):
+        self.decodedList = []
+    def notifyPacketDecoded(self, packetId):
+        self.decodedList.append(packetId)
+
+for iList in itertools.permutations([0,1,2]):
+    #print "=" * 50
+    #print iList
+    l = 3
+    pktList = makeCodedPacketList(l, 2)
+    recorder = DecodingRecorder()
+    pktSet = allocCPacketSet(l, recorder)
+    #print packet_set_pyrepr(pktSet)
+
+    stat = new_reductionStat()
+
+    i0,i1,i2 = iList
+    pc0 = pktList[i1].clone() + pktList[i2].clone()
+    pc1 = pktList[i0].clone() + pktList[i2].clone()
+    pc2 = pktList[i0].clone() + pktList[i1].clone() + pktList[i2].clone()
+
+    for p in [pc0, pc1, pc2]:
+        packetId = packet_set_add(pktSet, p.content, stat)
+        assert packetId != macro_PACKET_ID_NONE
+
+    freeCPacketSet(pktSet)
+
+    #packet_set_pywrite_stdout(pktSet)
+    #print reduction_stat_pyrepr(stat)
+    assert stat.decoded == 3
+
+    assert sorted(recorder.decodedList) == range(3)
+
+#---------------------------------------------------------------------------

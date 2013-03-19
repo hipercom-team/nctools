@@ -264,7 +264,7 @@ void coded_packet_pywrite(FILE* out, coded_packet_t* p)
     fprintf(out, "%u", coded_packet_get_coef(p,i));
   }
   fprintf(out, "]");
-  fprintf(out, ", data:");
+  fprintf(out, ", 'data':");
   data_string_pywrite(out, coded_packet_data(p), p->data_size);
   fprintf(out, " }");
 }
