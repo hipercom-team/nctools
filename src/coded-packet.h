@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
- * Linearly coded packets
+ * Functions and operations on linear combination of packets
  *---------------------------------------------------------------------------
  * Author: Cedric Adjih
  * Copyright 2013 Inria
@@ -19,13 +19,23 @@
 
 /*---------------------------------------------------------------------------*/
 
+#ifdef CONF_CODED_PACKET_SIZE
+#define CODED_PACKET_SIZE CONF_CODED_PACKET_SIZE
+#else  /* CONF_CODED_PACKET_SIZE */
 #define CODED_PACKET_SIZE 128
+#endif /* CONF_CODED_PACKET_SIZE */
 
+#ifdef CONF_LOG2_COEF_HEADER_SIZE
+#define CONF_LOG2_COEF_HEADER_SIZE LOG2_COEF_HEADER_SIZE
+#else  /* CONF_LOG2_COEF_HEADER_SIZE */
 #define LOG2_COEF_HEADER_SIZE 4
+#endif /* CONF_LOG2_COEF_HEADER_SIZE */
+
+#define COEF_HEADER_SIZE_SWIG 16 /* work-around swig bug */
 #ifndef SWIG
 #define COEF_HEADER_SIZE (1<<LOG2_COEF_HEADER_SIZE)
 #else /* SWIG */
-#define COEF_HEADER_SIZE 16
+#define COEF_HEADER_SIZE COEF_HEADER_SIZE_SWIG
 #endif /* SWIG */
 
 #define COEF_POS_NONE 0xffffu
@@ -39,18 +49,17 @@ typedef struct {
 
   union {
     uint32_t u32[(COEF_HEADER_SIZE+CODED_PACKET_SIZE+3)/4];
-    //uint16_t u16[(COEF_HEADER_SIZE+CODED_PACKET_SIZE+1)/2];
     uint8_t  u8[COEF_HEADER_SIZE+CODED_PACKET_SIZE];
   } content;
 } coded_packet_t;
 
 /*---------------------------------------------------------------------------*/
 
+static inline uint16_t log2_window_size(uint8_t l)
+{ return LOG2_COEF_HEADER_SIZE+LOG2_BITS_PER_BYTE-l; }
+
 static inline uint16_t coded_packet_log2_window(coded_packet_t* pkt)
-{
-  uint8_t l = pkt->log2_nb_bit_coef;
-  return LOG2_COEF_HEADER_SIZE+LOG2_BITS_PER_BYTE-l;
-}
+{ return log2_window_size(pkt->log2_nb_bit_coef); }
 
 void coded_packet_init(coded_packet_t* pkt, uint8_t log2_nb_bit_coef);
 
@@ -88,13 +97,6 @@ void coded_packet_to_add(coded_packet_t* result,
 			 coded_packet_t* p1,
 			 coded_packet_t* p2);
 
-#if 0
-/* XXX: not used */
-void coded_packet_get_sum_index_bound
-(coded_packet_t* p1, coded_packet_t* p2,
- uint16_t* result_coef_pos_min, uint16_t* result_coef_pos_max)
-#endif
-
 void coded_packet_add_mult
 (coded_packet_t* p1, uint8_t coef2, coded_packet_t* p2);
 
@@ -107,7 +109,7 @@ void coded_packet_pywrite(FILE* out, coded_packet_t* p);
 static inline uint8_t* coded_packet_data(coded_packet_t* p)
 { return p->content.u8 + COEF_HEADER_SIZE; }
 
-/* warning slow function, also may change p1, p2 by calling
+/* warning: slow function, also may change p1, p2 internals by calling
    coded_packet_adjust_min_max_coef(...) */
 bool coded_packet_is_similar(coded_packet_t* p1, coded_packet_t* p2);
 

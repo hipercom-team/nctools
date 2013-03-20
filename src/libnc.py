@@ -144,9 +144,10 @@ def adjusted(p):
 
 #--------------------------------------------------
 
-def makeCodedPacketList(l, n):
+def makeCodedPacketList(l, n = None):
     nbHeaderCoef = (macro_COEF_HEADER_SIZE*8) // (1 << l)
-    n = nbHeaderCoef
+    if n == None: 
+        n = nbHeaderCoef
     result = []
     for i in range(n):
         data = "\x01<packet %s GF(%s)>\x00" % (i, 1<<(1<<l))
@@ -154,6 +155,8 @@ def makeCodedPacketList(l, n):
         p = makeCodedPacket(i, data, l)
         result.append(p)
     return result
+
+#---------------------------------------------------------------------------
 
 def floatFromHash(data):
     """return a number in [0,1[ computed from the hash of data"""
@@ -251,40 +254,165 @@ def freeCPacketSet(cPacketSet):
         my_dec_ref(cPacketSet.notif_data)
     delete_packetSet(cPacketSet)
 
-#---------------------------------------------------------------------------
+#--------------------------------------------------
 
-class DecodingRecorder:
-    def __init__(self):
+class PacketSet:
+    def __init__(self, log2NbBitCoef):
+        self.l = log2NbBitCoef
+        self.content = allocCPacketSet(self.l, self)
         self.decodedList = []
+        self.stat = new_reductionStat()
+        reduction_stat_init(self.stat)
+
     def notifyPacketDecoded(self, packetId):
         self.decodedList.append(packetId)
+        self.lastDecodedList.append(packetId)
 
-for iList in itertools.permutations([0,1,2]):
-    #print "=" * 50
-    #print iList
-    l = 3
-    pktList = makeCodedPacketList(l, 2)
-    recorder = DecodingRecorder()
-    pktSet = allocCPacketSet(l, recorder)
-    #print packet_set_pyrepr(pktSet)
+    def add(self, codedPacket):
+        codedPacket = codedPacket.clone()
+        self.lastDecodedList = []
+        packetId = packet_set_add(self.content, codedPacket.content, self.stat)
+        if packetId == macro_PACKET_ID_NONE:
+            packetId = None
+        result = (packetId, self.lastDecodedList)
+        del self.lastDecodedList
+        return result
 
-    stat = new_reductionStat()
+    def getPacketForCoefPos(self, coefPos):
+        packetId = packet_set_get_id_of_pos(self.content, coefPos)
+        if packetId == macro_PACKET_ID_NONE:
+            return None
+        cPacketRef = packet_set_get_coded_packet(self.content, packetId)
+        cPacket = cloneCCodedPacket(cPacketRef)
+        return CodedPacket(content=cPacket)
 
-    i0,i1,i2 = iList
-    pc0 = pktList[i1].clone() + pktList[i2].clone()
-    pc1 = pktList[i0].clone() + pktList[i2].clone()
-    pc2 = pktList[i0].clone() + pktList[i1].clone() + pktList[i2].clone()
+    def __len__(self): return packet_set_count(self.content)
+    def isEmpty(self): return packet_set_is_empty(self.content)
 
-    for p in [pc0, pc1, pc2]:
-        packetId = packet_set_add(pktSet, p.content, stat)
-        assert packetId != macro_PACKET_ID_NONE
+    def __str__(self):
+        if self.isEmpty(): return "{}"
+        r = []
+        for coefPos in range(self.content.coef_pos_min,
+                             self.content.coef_pos_max+1):
+            p = self.getPacketForCoefPos(coefPos)
+            r.append("%d: " % coefPos + str(p))
+        return "{ " + "\n  ".join(r) + " }"
 
-    freeCPacketSet(pktSet)
+    __repr__ = __str__
 
-    #packet_set_pywrite_stdout(pktSet)
-    #print reduction_stat_pyrepr(stat)
-    assert stat.decoded == 3
+    def __del__(self):
+        delete_reduction_stat(self.stat)
+        self.stat = None
+        freeCPacketSet(self.content)
+        self.content = None
 
-    assert sorted(recorder.decodedList) == range(3)
+    def toMatrixStr(self, withContent = False):
+        rList = []
+        s = len("%s"%(1<<(1<<self.l)))
+        for coefPos in range(self.content.coef_pos_min,
+                             self.content.coef_pos_max+1):
+            p = self.getPacketForCoefPos(coefPos)
+            if p == None: 
+                continue
+            r = "[%d]" % coefPos
+            coefTable = p.getCoefTable()
+            for i in range(self.content.coef_pos_min,
+                             self.content.coef_pos_max+1):
+                r += " " + ("%s"%coefTable.get(i,0)).rjust(s)
+            if withContent:
+                r += " " + repr(p.getData())
+            rList.append(r)
+        return "{ " + "\n  ".join(rList) + " }"
+
+#---------------------------------------------------------------------------
+
+if __name__ == "__main__" and False:
+
+    class DecodingRecorder:
+        def __init__(self):
+            self.decodedList = []
+        def notifyPacketDecoded(self, packetId):
+            self.decodedList.append(packetId)
+
+    c1,c2,c3,c4,c5,c6,c7 = [3,7,9,11,13,17,19]
+    #c1,c2,c3,c4,c5,c6,c7 = [3] * 7
+
+    for iList in itertools.permutations([0,1,2]):
+        #print "=" * 50
+        #print iList
+        l = 3
+        pktList = makeCodedPacketList(l, 3)
+        recorder = DecodingRecorder()
+        pktSet = allocCPacketSet(l, recorder)
+        #print packet_set_pyrepr(pktSet)
+
+        stat = new_reductionStat()
+
+        i0,i1,i2 = iList
+        pc0 = c1*pktList[i1].clone() + c2*pktList[i2].clone()
+        pc1 = c3*pktList[i0].clone() + c4*pktList[i2].clone()
+        pc2 = (c5*pktList[i0].clone() + c6*pktList[i1].clone() 
+               + c7*pktList[i2].clone())
+
+        for p in [pc0, pc1, pc2]:
+            #print p
+            packetId = packet_set_add(pktSet, p.content, stat)
+            assert packetId != macro_PACKET_ID_NONE
+            #pprint.pprint( eval(packet_set_pyrepr(pktSet)) )
+            #print "-" * 50
+
+        #packet_set_pywrite_stdout(pktSet)
+        #print reduction_stat_pyrepr(stat)
+        assert stat.decoded == 3
+
+        assert sorted(recorder.decodedList) == range(3)
+        freeCPacketSet(pktSet)
+
+#---------------------------------------------------------------------------
+
+import random
+
+def testCauchyMatrix(l):
+    fieldSize = (1<<(1<<l))
+    P = makeCodedPacketList(l, fieldSize)
+
+    packetList = []
+    maxNbCoef = 1<<log2_window_size(l)
+
+    m = min(maxNbCoef, fieldSize-1)
+
+    coefList = range(1,m+1)
+    random.seed(1)
+    random.shuffle(coefList)
+
+    for i in range(m//2):
+        current = CodedPacket(l)
+        for j in range(m//2):
+            x = coefList[i]
+            y = coefList[j+(m//2)]
+            c = lc_inv(x ^ lc_neg(y,l), l) # 1 / (x -y)  in GF(2^k)
+            current += c * P[j]
+
+        packetList.append(current)
+    
+    packetSet = PacketSet(l)
+    for i,p in enumerate(packetList):
+        assert len(packetSet) == i
+        assert packetSet.stat.decoded == 0
+        packetId, decodedPacketList = packetSet.add(p)
+        assert packetId != None
+        #print packetSet
+        print packetSet.toMatrixStr(True)
+    #print packetSet.toMatrixStr()
+
+    assert packetSet.stat.decoded == len(packetList)
+    
+
+#---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    testCauchyMatrix(1)
+    testCauchyMatrix(2)
+    testCauchyMatrix(3)
 
 #---------------------------------------------------------------------------

@@ -198,19 +198,6 @@ void coded_packet_to_add(coded_packet_t* result,
   result->data_size -= COEF_HEADER_SIZE;
 }
 
-#if 0
-/* p1 pointer call be same exactly as p2 pointer */
-void coded_packet_get_sum_index_bound
-(coded_packet_t* p1, coded_packet_t* p2,
- uint16_t* result_coef_pos_min, uint16_t* result_coef_pos_max)
-{
-  *result_coef_pos_min = min_except(p1->coef_pos_min, p2->coef_pos_min,
-				      COEF_POS_NONE);
-  *result_coef_pos_max = max_except(p1->coef_pos_max, p2->coef_pos_max,
-				      COEF_POS_NONE);
-}
-#endif
-
 /* p1 pointer MUST be different from p2 pointer */
 static void coded_packet_destructive_linear_combination
 (uint8_t coef1, coded_packet_t* p1_and_result, 

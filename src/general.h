@@ -33,6 +33,9 @@
 #define REQUIRE(...) ASSERT(__VA_ARGS__)
 #define ENSURE(...)  ASSERT(__VA_ARGS__)
 
+#define STATIC_ENSURE_EQUAL(name,a,b) \
+  struct name { char l1[(a)-(b)]; char l2[(b)-(a)]; };
+
 #define MAX(a,b) ((a) > (b) ? a : b)
 #define MIN(a,b) ((a) < (b) ? a : b)
 

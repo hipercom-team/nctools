@@ -88,7 +88,8 @@ static uint16_t packet_set_reduce
 
     /* reduce by coded_packet */
     stat->reduction_success ++;
-    coded_packet_add_mult(pkt, lc_neg(coef, l), base_pkt);
+    uint8_t factor = lc_neg(coef, l);
+    coded_packet_add_mult(pkt, factor, base_pkt);
     is_empty = !coded_packet_adjust_min_max_coef(pkt);
   }
 
@@ -111,6 +112,39 @@ uint16_t packet_set_alloc_packet_id(packet_set_t* set)
       return i;
   }
   return PACKET_ID_NONE;
+}
+
+bool packet_set_is_empty(packet_set_t* set)
+{
+  if (set->coef_pos_min == COEF_POS_NONE) {
+    ASSERT( set->coef_pos_max == COEF_POS_NONE );
+    return true;
+  }
+  return false;
+}
+
+uint16_t packet_set_count(packet_set_t* set)
+{
+  if (packet_set_is_empty(set))
+    return 0;
+  uint16_t result = 0;
+  uint16_t coef_pos;
+  for (coef_pos = set->coef_pos_min; coef_pos <= set->coef_pos_max; coef_pos++)
+    if (set->pos_to_id[coef_pos % MAX_CODED_PACKET] != PACKET_ID_NONE)
+      result++;
+  return result;
+}
+
+uint16_t packet_set_get_id_of_pos(packet_set_t* set, uint16_t coef_pos)
+{
+  REQUIRE( coef_pos != COEF_POS_NONE );
+  if (packet_set_is_empty(set))
+    return PACKET_ID_NONE;
+  
+  if ( !(set->coef_pos_min <= coef_pos && coef_pos <= set->coef_pos_max) )
+    return PACKET_ID_NONE;
+
+  return set->pos_to_id[coef_pos % MAX_CODED_PACKET];
 }
 
 uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt,
@@ -203,7 +237,8 @@ uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt,
       if (other_coef == 0)
 	continue;
       stat->elimination++;
-      coded_packet_add_mult(other_pkt, lc_neg(other_coef,l), pkt);
+      uint8_t factor  = lc_neg(other_coef, l);
+      coded_packet_add_mult(other_pkt, factor, stored_pkt);
       coded_packet_adjust_min_max_coef(other_pkt);
       if (coded_packet_was_decoded(other_pkt)) {
 	stat->decoded ++;

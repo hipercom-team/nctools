@@ -74,6 +74,12 @@ void packet_set_init(packet_set_t* set, uint8_t log2_nb_bit_coef,
 uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt,
 			reduction_stat_t* stat);
 
+uint16_t packet_set_get_id_of_pos(packet_set_t* set, uint16_t coef_pos);
+
+bool packet_set_is_empty(packet_set_t* set);
+
+uint16_t packet_set_count(packet_set_t* set);
+
 /*---------------------------------------------------------------------------*/
 
 #endif /* __PACKET_SET_H__ */
