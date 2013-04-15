@@ -6,7 +6,7 @@
 # All rights reserved. Distributed only with permission.
 #---------------------------------------------------------------------------
 
-import sys, unittest, pprint, random
+import sys, unittest, pprint, random, itertools
 
 import libnc
 
@@ -177,7 +177,6 @@ class TestLinearCoding(unittest.TestCase):
                 self.assertEqual(result, expectedResult)
 
 
-
 class TestCodedPacket(unittest.TestCase):
     def setUp(self):
         self.P = {}
@@ -226,19 +225,111 @@ class TestCodedPacket(unittest.TestCase):
                 self.assertTrue(same)
 
 
-class TestPacketSet:
-    def setUp(self):
-        self.P = {}
-        for l in range(libnc.MaxLog2NbBitCoef+1):
-            nbHeaderCoef = (libnc.macro_COEF_HEADER_SIZE*8) // (1 << l)
-            m = libnc.macro_MAX_CODED_PACKET
-            self.P[l] = libnc.makeCodedPacketList(l, 2*m)
+class TestPacketSet(unittest.TestCase):
 
-    def test_basic(l):
-        alloc_packet_set()
+    def checkSimpleCombDecoding(self, l):
+        """Test if the packet_set code can correctly decode the set:
+        {          c1. P1 + c2. P2 ,
+          c3. P0          + c4. P2 ,
+          c5. P0 + c6. P1 + c7. P2 } 
+        with all permutations of coefficient positions
+        """
+        
+        class DecodingRecorder:
+            def __init__(self):
+                self.decodedList = []
+            def notifyPacketDecoded(self, packetId):
+                self.decodedList.append(packetId)
+
+        n = 1<<(1<<l)
+
+        coefList = [3,7,9,11,13,17,19]
+        coefList = [ x % n for x in coefList ]
+        c1,c2,c3,c4,c5,c6,c7 = coefList
+
+        for iList in itertools.permutations([0,1,2]):
+            pktList = libnc.makeCodedPacketList(l, 3)
+            recorder = DecodingRecorder()
+            pktSet = libnc.allocCPacketSet(l, recorder)
+
+            stat = libnc.new_reductionStat()
+
+            i0,i1,i2 = iList
+            pc0 = c1*pktList[i1].clone() + c2*pktList[i2].clone()
+            pc1 = c3*pktList[i0].clone() + c4*pktList[i2].clone()
+            pc2 = (c5*pktList[i0].clone() + c6*pktList[i1].clone() 
+                   + c7*pktList[i2].clone())
+
+            for p in [pc0, pc1, pc2]:
+                packetId = libnc.packet_set_add(pktSet, p.content, stat)
+                assert packetId != libnc.macro_PACKET_ID_NONE
+                #pprint.pprint( eval(libnc.packet_set_pyrepr(pktSet)) )
+                #print "-" * 50
+
+            assert stat.decoded == 3
+            assert sorted(recorder.decodedList) == range(3)
+
+            for j in range(3):
+                packetId = libnc.packet_set_get_id_of_pos(pktSet, j)
+                decoded = libnc.packet_set_get_coded_packet(pktSet, packetId)
+                #print libnc.coded_packet_pyrepr(decoded)
+                self.assertTrue( libnc.coded_packet_was_decoded(decoded) )
+                self.assertTrue( libnc.coded_packet_is_similar(
+                        decoded, pktList[j].content) )
+
+            libnc.freeCPacketSet(pktSet)
+            libnc.delete_reductionStat(stat)
+        
+
+    def test_simpleCombDecoding(self):
+        for l in range(libnc.MaxLog2NbBitCoef+1):
+            self.checkSimpleCombDecoding(l)
+
+
+    def checkDecodingPacketList(self, packetList, initialPacketList):
+        """Check that decoding the packetList yields initialPacketList
+        the packetList must be exactly of size initialPacketList"""
+        assert len(packetList) == len(initialPacketList)
+        if len(packetList) == 0:
+            return # nothing to check
+        l = packetList[0].getL()
+        packetSet = libnc.PacketSet(l)
+        for i,p in enumerate(packetList):
+            self.assertEqual(len(packetSet), i)
+            self.assertEqual(packetSet.stat.decoded, 0)
+            packetId, decodedPacketList = packetSet.add(p)
+            self.assertNotEqual(packetId, None)
+        
+        for i in range(len(initialPacketList)):
+            initialPacket = initialPacketList[i]
+            decodedPacket = packetSet.getPacketForCoefPos(i)
+            self.assertTrue(decodedPacket.isSimilar(initialPacket))
+            
+        self.assertEqual(packetSet.stat.decoded, len(packetList))
+        #print "l", packetSet.stat.decoded
+
+    def checkDecodingWithCauchyMatrixComb(self, l):
+        fieldSize = (1<<(1<<l))
+        maxNbCoef = 1<<libnc.log2_window_size(l)
+        m = min(maxNbCoef, fieldSize//2)
+        initialPacketList = libnc.makeCodedPacketList(l, m)
+        
+        coefList = range(0, 2*m)
+
+        for seed in range(8):
+            random.seed(seed)
+            random.shuffle(coefList)
+        
+            packetList = libnc.makeCauchyMatrixComb(initialPacketList, coefList)
+            self.checkDecodingPacketList(packetList, initialPacketList)
+
+    def test_decodingDenseComb(self):
+        for l in range(libnc.MaxLog2NbBitCoef+1):
+            self.checkDecodingWithCauchyMatrixComb(l)
 
 TestLinearCoding = None
 TestCodedPacket = None
+#TestPacketSet = None
 
 #---------------------------------------------------------------------------
 

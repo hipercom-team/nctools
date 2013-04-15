@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
- * Linearly coded packets
+ * Sets of linear combinations of packets: management and decoding
  *---------------------------------------------------------------------------
  * Author: Cedric Adjih
  * Copyright 2013 Inria

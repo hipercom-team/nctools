@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------
-# Write Galois Field thingummy
+# Write Galois Field tables as "C" code (from previous computation)
 #---------------------------------------------------------------------------
 # Author: Cedric Adjih
 # Copyright 2013 Inria

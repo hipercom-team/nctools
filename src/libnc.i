@@ -50,8 +50,6 @@ STATIC_ENSURE_EQUAL(check_coef_header_size,
 
 //---------------------------------------------------------------------------
 
-
-
 %inline %{
 
 #include "macro-pywrite.h"
@@ -75,6 +73,7 @@ STATIC_ENSURE_EQUAL(check_coef_header_size,
 
   /* -------------------------------------------------- */  
 
+  WRAP_PYWRITE(coded_packet_pyrepr, coded_packet_pywrite, coded_packet_t*);
   WRAP_PYWRITE(packet_set_pyrepr, packet_set_pywrite, packet_set_t*);
   WRAP_PYWRITE(reduction_stat_pyrepr, reduction_stat_pywrite, 
 	       reduction_stat_t*);

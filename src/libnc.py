@@ -7,11 +7,10 @@
 #---------------------------------------------------------------------------
 
 import struct, hashlib, pprint
-import itertools
 
 from libncmodule import *
 
-MaxLog2NbBitCoef = 3 # included
+MaxLog2NbBitCoef = 3 # 3 included
 Log2BitsPerByte = 3
 BitsPerByte = (1 << Log2BitsPerByte)
 
@@ -130,6 +129,15 @@ class CodedPacket:
     def getL(self):
         return self.content.log2_nb_bit_coef
 
+    def isSimilar(self, other):
+        p1 = self.clone()
+        p2 = other.clone()
+        same = coded_packet_is_similar(p1.content, p2.content)
+        return same
+
+    def isDecoded(self):
+        self.adjust()
+        return coded_packet_was_decoded(self.content)
 
 def makeCodedPacket(basePos, data, log2NbBitCoef):
     return CodedPacket(content = createCCodedPacket(
@@ -155,6 +163,26 @@ def makeCodedPacketList(l, n = None):
         p = makeCodedPacket(i, data, l)
         result.append(p)
     return result
+
+#--------------------------------------------------
+
+def makeCauchyMatrixComb(originalPacketList, coefList):
+    assert len(coefList) == 2*len(originalPacketList)
+    m = len(originalPacketList)
+    if m == 0: 
+        return []
+    l = originalPacketList[0].getL()
+    packetList = []
+    for i in range(m):
+        current = CodedPacket(l)
+        for j in range(m):
+            x = coefList[i]
+            y = coefList[j+m]
+            c = lc_inv(x ^ lc_neg(y,l), l) # 1 / (x -y)  in GF(2^k)
+            current += c * originalPacketList[j]
+
+        packetList.append(current)
+    return packetList    
 
 #---------------------------------------------------------------------------
 
@@ -323,96 +351,5 @@ class PacketSet:
                 r += " " + repr(p.getData())
             rList.append(r)
         return "{ " + "\n  ".join(rList) + " }"
-
-#---------------------------------------------------------------------------
-
-if __name__ == "__main__" and False:
-
-    class DecodingRecorder:
-        def __init__(self):
-            self.decodedList = []
-        def notifyPacketDecoded(self, packetId):
-            self.decodedList.append(packetId)
-
-    c1,c2,c3,c4,c5,c6,c7 = [3,7,9,11,13,17,19]
-    #c1,c2,c3,c4,c5,c6,c7 = [3] * 7
-
-    for iList in itertools.permutations([0,1,2]):
-        #print "=" * 50
-        #print iList
-        l = 3
-        pktList = makeCodedPacketList(l, 3)
-        recorder = DecodingRecorder()
-        pktSet = allocCPacketSet(l, recorder)
-        #print packet_set_pyrepr(pktSet)
-
-        stat = new_reductionStat()
-
-        i0,i1,i2 = iList
-        pc0 = c1*pktList[i1].clone() + c2*pktList[i2].clone()
-        pc1 = c3*pktList[i0].clone() + c4*pktList[i2].clone()
-        pc2 = (c5*pktList[i0].clone() + c6*pktList[i1].clone() 
-               + c7*pktList[i2].clone())
-
-        for p in [pc0, pc1, pc2]:
-            #print p
-            packetId = packet_set_add(pktSet, p.content, stat)
-            assert packetId != macro_PACKET_ID_NONE
-            #pprint.pprint( eval(packet_set_pyrepr(pktSet)) )
-            #print "-" * 50
-
-        #packet_set_pywrite_stdout(pktSet)
-        #print reduction_stat_pyrepr(stat)
-        assert stat.decoded == 3
-
-        assert sorted(recorder.decodedList) == range(3)
-        freeCPacketSet(pktSet)
-
-#---------------------------------------------------------------------------
-
-import random
-
-def testCauchyMatrix(l):
-    fieldSize = (1<<(1<<l))
-    P = makeCodedPacketList(l, fieldSize)
-
-    packetList = []
-    maxNbCoef = 1<<log2_window_size(l)
-
-    m = min(maxNbCoef, fieldSize-1)
-
-    coefList = range(1,m+1)
-    random.seed(1)
-    random.shuffle(coefList)
-
-    for i in range(m//2):
-        current = CodedPacket(l)
-        for j in range(m//2):
-            x = coefList[i]
-            y = coefList[j+(m//2)]
-            c = lc_inv(x ^ lc_neg(y,l), l) # 1 / (x -y)  in GF(2^k)
-            current += c * P[j]
-
-        packetList.append(current)
-    
-    packetSet = PacketSet(l)
-    for i,p in enumerate(packetList):
-        assert len(packetSet) == i
-        assert packetSet.stat.decoded == 0
-        packetId, decodedPacketList = packetSet.add(p)
-        assert packetId != None
-        #print packetSet
-        print packetSet.toMatrixStr(True)
-    #print packetSet.toMatrixStr()
-
-    assert packetSet.stat.decoded == len(packetList)
-    
-
-#---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    testCauchyMatrix(1)
-    testCauchyMatrix(2)
-    testCauchyMatrix(3)
 
 #---------------------------------------------------------------------------

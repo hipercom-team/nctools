@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
- * Linear coding of packets
+ * Sets of linear combinations of packets: management and decoding
  *---------------------------------------------------------------------------
  * Author: Cedric Adjih
  * Copyright 2013 Inria
@@ -163,9 +163,8 @@ uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt,
   if (coef_pos == COEF_POS_NONE)
     return PACKET_ID_NONE;
 
-  /* check if it can be inserted as new reference for base packet at coef_pos */
-  if (set->coef_pos_min == COEF_POS_NONE) {
-    ASSERT( set->coef_pos_max == COEF_POS_NONE );
+  /*check if it can be inserted as new reference for base packet at coef_pos */
+  if (packet_set_is_empty(set)) {
     set->coef_pos_min = pkt->coef_pos_min;
     set->coef_pos_max = pkt->coef_pos_max;
   }
