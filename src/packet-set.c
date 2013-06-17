@@ -114,6 +114,18 @@ uint16_t packet_set_alloc_packet_id(packet_set_t* set)
   return PACKET_ID_NONE;
 }
 
+uint8_t packet_set_free_first(packet_set_t* set)
+{
+  ASSERT (!packet_set_is_empty(set));
+  uint16_t pos = set->coef_pos_min;
+  uint16_t packet_id = set->pos_to_id[pos % MAX_CODED_PACKET];
+  ASSERT (packet_id != PACKET_ID_NONE);
+  set->id_to_pos[packet_id] = COEF_POS_NONE;
+  set->pos_to_id[pos % MAX_CODED_PACKET] = PACKET_ID_NONE;
+  set->coef_pos_min++;
+  return true;
+}
+
 bool packet_set_is_empty(packet_set_t* set)
 {
   if (set->coef_pos_min == COEF_POS_NONE) {
@@ -181,6 +193,7 @@ uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt,
       /* attempt to call to make room */
       if (set->notify_set_full_func != NULL)
 	set->notify_set_full_func(set, 	pkt->coef_pos_max - MAX_CODED_PACKET-1);
+
       /* second test, if notify_set_full_func has made enough room */
       if (pkt->coef_pos_max - set->coef_pos_min >= MAX_CODED_PACKET) {
 	stat->coef_pos_too_high ++;
@@ -222,7 +235,6 @@ uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt,
       set->notify_packet_decoded_func(set, packet_id);
   }
 
-
   /* eliminate */
   uint16_t i;
   for (i=set->coef_pos_min; i<=set->coef_pos_max; i++)
@@ -255,7 +267,7 @@ uint16_t packet_set_add(packet_set_t* set, coded_packet_t* pkt,
 
 #ifdef CONF_WITH_FPRINTF
 
-void coef_pos_pywrite(FILE*out, uint16_t coef_pos)
+void coef_pos_pywrite(FILE* out, uint16_t coef_pos)
 {
   if (coef_pos == COEF_POS_NONE)
     fprintf(out, "None");

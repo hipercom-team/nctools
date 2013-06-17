@@ -4,38 +4,6 @@
 # All rights reserved. Distributed only with permission.
 #---------------------------------------------------------------------------
 
-#export CONTIKI_NO_NET=1
-
-#--------------------------------------------------
-# Contiki parts
-#--------------------------------------------------
-
--include Makefile.target
-
-ifndef TARGET
-TARGET=z1
-endif
-
-#CONTIKI=contiki-senslab-unified
-CONTIKI=contiki-standard
-CONTIKI2=contiki-senslab-unified
-
-CONTIKI_PROJECT = contiki-nc
-#CONTIKI_PROJECT = test-adxl345
-ifdef WITH_SHELL
-APPS=serial-shell
-CFLAGS += -DWITH_SHELL=1
-endif
-CONTIKI_SOURCEFILES += contiki-nc.c \
-   general.c linear-code.c coded-packet.c packet-set.c
-
-all: ${CONTIKI_PROJECT}
--include ${CONTIKI}/Makefile.include
-
-CFLAGS += -DHIP_CONF_SIMULATOR=1 -DHIP_CONF_DISABLE_SWAP=1
-
-#------------------------------
-
 PYTHON=python
 CFLAGS += -Wall -g3
 
@@ -124,32 +92,12 @@ test-coded-packet: test-coded-packet.o libnc.a
 # Cleaning
 #---------------------------------------------------------------------------
 
-clean-it: clean
+clean:
 	rm -f *.a *.so *.o *.d *~ *.pyc 
 	rm -f libncmodule.c libncmodule.py
 	rm -f test-coded-packet
 
-really-clean: clean-it
+really-clean: clean
 	rm -rf build table-*.pydat table-*gf*.c 
-
-#---------------------------------------------------------------------------
-# COOJA Directory
-#---------------------------------------------------------------------------
-
-COOJADIR=${CONTIKI2}/tools/cooja
-
-test-nogui:
-	cd tmp && (cd ../${COOJADIR} ; ant jar) && java -jar ../${COOJADIR}/dist/cooja.jar -nogui=../sim-nc.csc  -contiki=../${CONTIKI2} 
-# -external_tools_config=
-# -quickstart=
-
-run-nogui:
-	cd tmp && java -jar ../${COOJADIR}/dist/cooja.jar -nogui=../sim-nc.csc  -contiki=../${CONTIKI2} #TEST-ARGS
-
-run-gui:
-	cd tmp && java -jar ../${COOJADIR}/dist/cooja.jar -quickstart=../sim-nc.csc  -contiki=../${CONTIKI2} #TEST-ARGS
-
-run-cooja:
-	cd ${COOJADIR} && ant 
 
 #---------------------------------------------------------------------------

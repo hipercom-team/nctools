@@ -13,10 +13,15 @@
 
 /*--------------------------------------------------*/
 
+#ifdef WITH_GF16
 #include "table-mul-gf16.c"
+#endif /* WITH_GF16 */
+
 #include "table-mul-gf4.c"
 
 /*--------------------------------------------------*/
+
+#ifdef WITH_GF256
 
 #ifdef WITH_GF256_MUL_TABLE
 
@@ -46,6 +51,8 @@ static inline uint8_t gf256_inv(uint8_t a)
 { return gf256_exp_table[255-gf256_log_table[a]]; }
 
 #endif /* WITH_GF256_MUL_TABLE */
+
+#endif /* WITH_GF256 */
 
 /*---------------------------------------------------------------------------*/
 
@@ -78,6 +85,7 @@ void lc_vector_add(uint8_t* data1, uint16_t size1,
 
 /*---------------------------------------------------------------------------*/
 
+#ifdef WITH_GF256
 /* this function also operates correctly if data is exactly equal to result */
 void lc_vector_mul_gf256(uint8_t coef, uint8_t* data, uint16_t size,
 			 uint8_t* result)
@@ -91,7 +99,9 @@ void lc_vector_mul_gf256(uint8_t coef, uint8_t* data, uint16_t size,
   for (i=0; i<size; i++)
     result[i] = gf256_mul(coef, data[i]);
 }
+#endif /* WITH_GF256 */
 
+#ifdef WITH_GF16
 /* this function also operates correctly if data is exactly equal to result */
 void lc_vector_mul_gf16(uint8_t coef, uint8_t* data, uint16_t size,
 			uint8_t* result)
@@ -101,6 +111,7 @@ void lc_vector_mul_gf16(uint8_t coef, uint8_t* data, uint16_t size,
   for (i=0; i<size; i++)
     result[i] = gf16_mul_table[coef][data[i]];
 }
+#endif /* WITH_GF16 */
 
 /* this function also operates correctly if data is exactly equal to result */
 void lc_vector_mul_gf4(uint8_t coef, uint8_t* data, uint16_t size,
@@ -133,8 +144,12 @@ void lc_vector_mul(uint8_t coef, uint8_t* data, uint16_t size,
   switch(log2_nb_bit_coef) {
   case 0: lc_vector_mul_gf2(coef, data, size, result); break;
   case 1: lc_vector_mul_gf4(coef, data, size, result); break;
+#ifdef WITH_GF16
   case 2: lc_vector_mul_gf16(coef, data, size, result); break;
+#endif /* WITH_GF16 */
+#ifdef WITH_GF256
   case 3: lc_vector_mul_gf256(coef, data, size, result); break;
+#endif /* WITH_GF256 */
   default: FATAL("invalid log2_nb_bit_coef");
   }
 }
@@ -188,8 +203,12 @@ uint8_t lc_mul(uint8_t x, uint8_t y, uint8_t log2_nb_bit_coef)
   switch(log2_nb_bit_coef) {
   case 0: ASSERT(x < 2 && y < 2); return x&y;
   case 1: ASSERT(x < 4 && y < 4); return gf4_mul_table[x][y];
+#ifdef WITH_GF16
   case 2: ASSERT(x < 16 && y <16); return gf16_mul_table[x][y];
+#endif /* WITH_GF16 */
+#ifdef WITH_GF256
   case 3: return gf256_mul(x,y);
+#endif /* WITH_GF256 */
   default: 
     FATAL("invalid log2_nb_bit_coef");
     return 0;
@@ -203,8 +222,12 @@ uint8_t lc_inv(uint8_t x, uint8_t log2_nb_bit_coef)
   switch(log2_nb_bit_coef) {
   case 0: ASSERT(x < 2); return x;
   case 1: ASSERT(x < 4); return gf4_inv_table[x];
+#ifdef WITH_GF16
   case 2: ASSERT(x < 16); return gf16_inv_table[x];
+#endif /* WITH_GF16 */
+#ifdef WITH_GF256
   case 3: return gf256_inv(x);
+#endif /* WITH_GF256 */
   default: 
     FATAL("invalid log2_nb_bit_coef");
     return 0;

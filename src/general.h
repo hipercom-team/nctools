@@ -59,7 +59,11 @@ static inline uint16_t max_except(uint16_t v1, uint16_t v2, uint16_t ignored)
 
 /*---------------------------------------------------------------------------*/
 
+#ifndef CONTIKI
 #include "platform-linux.h"
+#else /* CONTIKI */
+#include "platform-embedded.h"
+#endif /* CONTIKI */
 
 /*---------------------------------------------------------------------------*/
 

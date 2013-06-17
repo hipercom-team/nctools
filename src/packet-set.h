@@ -31,7 +31,7 @@ static inline void reduction_stat_init(reduction_stat_t* stat)
 /*---------------------------------------------------------------------------*/
 
 #ifdef CONF_MAX_CODED_PACKET
-#define MAX_CODED_PACKET CONFIG_MAX_CODED_PACKET
+#define MAX_CODED_PACKET CONF_MAX_CODED_PACKET
 #else  /* CONF_MAX_CODED_PACKET */
 #define MAX_CODED_PACKET 128
 #endif /* CONF_MAX_CODED_PACKET */
@@ -79,6 +79,21 @@ uint16_t packet_set_get_id_of_pos(packet_set_t* set, uint16_t coef_pos);
 bool packet_set_is_empty(packet_set_t* set);
 
 uint16_t packet_set_count(packet_set_t* set);
+
+//uint16_t packet_set_free_packet_id(packet_set_t* set, uint16_t packet_id);
+uint8_t packet_set_free_first(packet_set_t* set);
+
+/*---------------------------------------------------------------------------*/
+
+#ifdef CONF_WITH_FPRINTF
+
+void coef_pos_pywrite(FILE* out, uint16_t coef_pos);
+
+void packet_set_pywrite(FILE* out, packet_set_t* set);
+
+void reduction_stat_pywrite(FILE* out, reduction_stat_t* stat);
+
+#endif /* CONF_WITH_FPRINTF */
 
 /*---------------------------------------------------------------------------*/
 

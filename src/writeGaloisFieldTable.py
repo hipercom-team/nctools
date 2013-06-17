@@ -122,11 +122,11 @@ def generateTableForC():
     r += "  " + cmdLine + "\n"
     r += "*/\n\n#include <stdint.h>\n\n"
 
-    r += "uint8_t gf%s_log_table[%s] = {\n" % (Order, Order)
+    r += "static const uint8_t gf%s_log_table[%s] = {\n" % (Order, Order)
     r += reprAsCList([log.get(x,0) for x in range(Order)])
     r += "};\n\n"
 
-    r += "uint8_t gf%s_exp_table[%s] = {\n" % (Order, Order)
+    r += "static const uint8_t gf%s_exp_table[%s] = {\n" % (Order, Order)
     r += reprAsCList([exp.get(x,0) for x in range(Order)])
     r += "};\n\n"
 
@@ -140,7 +140,8 @@ def generateTableForC():
     r += "  " + cmdLine + "\n"
     r += "*/\n\n#include <stdint.h>\n\n"
 
-    r += "uint8_t gf%s_mul_table[%s][%s] = {\n" % (Order, Order, 256)
+    r += "static const uint8_t gf%s_mul_table[%s][%s] = {\n" % (
+        Order, Order, 256)
     for x in range(Order):
         if x != 0: r += ",\n"
         r += "  { "
@@ -148,7 +149,7 @@ def generateTableForC():
         r += " }"
     r += "\n};\n\n"
 
-    r += "uint8_t gf%s_inv_table[%s] = {\n" % (Order, Order)
+    r += "static const uint8_t gf%s_inv_table[%s] = {\n" % (Order, Order)
     r += reprAsCList([inv.get(x,0) for x in range(Order)])
     r += "};\n\n"
 

@@ -6,13 +6,18 @@
  * All rights reserved. Distributed only with permission.
  *---------------------------------------------------------------------------*/
 
-#ifndef __PLATFORM_LINUX_H__
-#define __PLATFORM_LINUX_H__
+#ifndef __PLATFORM_EMBEDDED_H__
+#define __PLATFORM_EMBEDDED_H__
 
 /*---------------------------------------------------------------------------*/
 
-#define WITH_GF16
-#define WITH_GF256
+#include "config-embedded.h"
+
+/*---------------------------------------------------------------------------*/
+
+#define CONF_WITH_FPRINTF
+#define fprintf(out, ...) printf(__VA_ARGS__)
+#define FILE int
 
 /*---------------------------------------------------------------------------*/
 
@@ -28,23 +33,22 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
-#include <unistd.h>
 
-#define ASSERT( x ) assert ( x )
+#define ASSERT( x ) do { if (!(x)) { for (;;) ; } } while(0)
 
 #define FATAL(...)				\
   BEGIN_MACRO					\
-     fprintf(stderr, "FATAL: " __VA_ARGS__);	\
-     fprintf(stderr, "\n");			\
-     exit(1); \
+     printf("FATAL: " __VA_ARGS__);	\
+     printf("\n");			\
+     while (1) ; \
   END_MACRO
 
 #define WARN(...)				\
   BEGIN_MACRO					\
-     fprintf(stderr, "WARNING: " __VA_ARGS__);	\
-     fprintf(stderr, "\n");			\
+     printf("WARNING: " __VA_ARGS__);	\
+     printf("\n");			\
   END_MACRO
 
 /*---------------------------------------------------------------------------*/
 
-#endif /* __PLATFORM_LINUX_H__ */
+#endif /* __PLATFORM_EMBEDDED_H__ */
